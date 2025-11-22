@@ -8,7 +8,7 @@ from typing import Dict
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from analyzer import extract_audio, transcribe_audio, analyze_speech
+from analyzer import extract_audio, transcribe_audio, analyze_speech, analyze_video
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,12 +40,11 @@ async def root():
         "endpoints": ["/api/upload", "/api/session/{session_id}"]
     }
 
-
 @app.post("/api/upload")
 async def upload_video(video: UploadFile):
     """
     Upload video and analyze presentation
-    Returns analysis results immediately
+    Returns analysis results immediately, including landmarks.json content
     """
     if not video.content_type or not video.content_type.startswith("video/"):
         raise HTTPException(400, "File must be a video")
@@ -56,6 +55,7 @@ async def upload_video(video: UploadFile):
     # Save uploaded video
     video_path = UPLOAD_DIR / f"{session_id}.mp4"
     audio_path = UPLOAD_DIR / f"{session_id}.wav"
+    landmarks_path = UPLOAD_DIR / f"{session_id}_landmarks.json"
     
     try:
         # Save video file
@@ -75,19 +75,41 @@ async def upload_video(video: UploadFile):
         print(f"[{session_id}] Analyzing speech patterns...")
         analysis = analyze_speech(transcript)
         
+        # Analyze video and save landmarks.json
+        print(f"[{session_id}] Analyzing video for landmarks...")
+        landmarks = analyze_video(str(video_path))
+        # Save landmarks to file
+        import json
+        with open(landmarks_path, "w") as lf:
+            json.dump(landmarks, lf)
+        
+        # Read landmarks.json content
+        with open(landmarks_path, "r") as lf:
+            landmarks_json = json.load(lf)
+        
         # Store results
         session_data = {
             "session_id": session_id,
             "status": "completed",
-            "results": analysis
+            "results": analysis,
+            "landmarks": landmarks_json
         }
         sessions[session_id] = session_data
         
         # Cleanup files
         video_path.unlink(missing_ok=True)
         audio_path.unlink(missing_ok=True)
+        landmarks_path.unlink(missing_ok=True)
         
         return session_data
+        
+    except Exception as e:
+        # Cleanup on error
+        video_path.unlink(missing_ok=True)
+        audio_path.unlink(missing_ok=True)
+        landmarks_path.unlink(missing_ok=True)
+        raise HTTPException(500, f"Analysis failed: {str(e)}")
+
         
     except Exception as e:
         # Cleanup on error
@@ -102,6 +124,7 @@ async def get_session(session_id: str):
     if session_id not in sessions:
         raise HTTPException(404, "Session not found")
     return sessions[session_id]
+
 
 
 if __name__ == "__main__":

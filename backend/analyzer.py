@@ -6,7 +6,71 @@ import re
 import requests
 from typing import Dict, List
 import ffmpeg
+import cv2
+import mediapipe as mp
+import json
+import numpy as np
+import together 
 
+
+def get_body_language_feedback(landmarks_data: dict) -> dict:
+    """
+    Analyze body language using Llama-3.2-11B-Vision-Instruct or Qwen2-VL-7B-Instruct via Together API.
+    Samples every 5th frame to reduce token usage.
+    Returns a dict with: overall_score, tips, issues.
+    """
+    # Sample every 5th frame
+    sampled = []
+    for i, frame in enumerate(landmarks_data.get("frames", [])):
+        if i % 5 == 0:
+            sampled.append({"timestamp": frame.get("timestamp"), "landmarks": frame.get("landmarks")})
+
+    # Build prompt
+    prompt = (
+        "You are an expert presentation coach. Analyze the following sampled body landmarks from a presentation video. "
+        "For each frame, consider posture, eye contact direction, hand gestures, and confidence signals. "
+        "Give a strict JSON output with these fields only:\n"
+        "overall_score (0-10, integer), tips (list of 3 concise strings), issues (list of strings with timestamps).\n"
+        "Example output:\n"
+        "{\n"
+        "  \"overall_score\": 8,\n"
+        "  \"tips\": [\"Keep your shoulders back\", \"Look at the audience more\", \"Use more open hand gestures\"],\n"
+        "  \"issues\": [\"00:00:05 - Looking away from audience\", \"00:00:12 - Hands in pockets\"]\n"
+        "}\n"
+        "Here are the sampled frames:\n"
+        f"{json.dumps(sampled)}"
+    )
+
+    try:
+        response = together.Complete.create(
+            model="llama-3-11b-vision-instruct",  # or "qwen2-vl-7b-instruct"
+            prompt=prompt,
+            max_tokens=600,
+            temperature=0.6,
+            stop=None
+        )
+        # Extract and parse JSON from the response
+        text = response['output']['choices'][0]['text']
+        try:
+            # Try to find the first and last curly braces to extract JSON
+            start = text.find('{')
+            end = text.rfind('}') + 1
+            json_str = text[start:end]
+            result = json.loads(json_str)
+        except Exception:
+            # Fallback: return a default structure
+            result = {
+                "overall_score": 0,
+                "tips": ["Could not parse feedback."],
+                "issues": []
+            }
+    except Exception as e:
+        result = {
+            "overall_score": 0,
+            "tips": [f"API error: {str(e)}"],
+            "issues": []
+        }
+    return result
 
 def extract_audio(video_path: str, audio_path: str) -> None:
     """Extract audio from video using FFmpeg"""
@@ -377,4 +441,88 @@ def analyze_sentence_starts(sentences: List[str]) -> Dict:
         "score": diversity_score,
         "common_start": most_common[0],
         "count": most_common[1]
+    }
+
+# Initialize MediaPipe solutions
+mp_pose = mp.solutions.pose
+mp_face_mesh = mp.solutions.face_mesh
+mp_drawing = mp.solutions.drawing_utils  # Optional: for visualizing landmarks if debugging
+
+def extract_landmarks(video_path: str, frame_interval: int = 10) -> Dict[str, any]:
+    """
+    Extract pose and face landmarks from video.
+    Returns: {'frames': [{'timestamp': float, 'pose_landmarks': List[Dict], 'face_landmarks': List[Dict]}], 'fps': float}
+    Each landmark: {'x': float, 'y': float, 'z': float, 'visibility': float} (normalized 0-1)
+    """
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_count = 0
+    landmarks_data = {'frames': [], 'fps': fps}
+    
+    with mp_pose.Pose(static_image_mode=False, model_complexity=1, enable_segmentation=False, min_detection_confidence=0.5) as pose, \
+         mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.5) as face_mesh:
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            if frame_count % frame_interval == 0:
+                # Flip frame horizontally for selfie-view (optional)
+                frame_rgb = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
+                
+                # Pose detection
+                pose_results = pose.process(frame_rgb)
+                pose_landmarks = []
+                if pose_results.pose_landmarks:
+                    for idx, landmark in enumerate(pose_results.pose_landmarks.landmark):
+                        pose_landmarks.append({
+                            'index': idx,
+                            'x': landmark.x,
+                            'y': landmark.y,
+                            'z': landmark.z,
+                            'visibility': landmark.visibility
+                        })
+                
+                # Face detection
+                face_results = face_mesh.process(frame_rgb)
+                face_landmarks = []
+                if face_results.multi_face_landmarks:
+                    for idx, landmark in enumerate(face_results.multi_face_landmarks[0].landmark):
+                        face_landmarks.append({
+                            'index': idx,
+                            'x': landmark.x,
+                            'y': landmark.y,
+                            'z': landmark.z
+                        })
+                
+                timestamp = frame_count / fps
+                landmarks_data['frames'].append({
+                    'timestamp': timestamp,
+                    'pose_landmarks': pose_landmarks,
+                    'face_landmarks': face_landmarks
+                })
+            
+            frame_count += 1
+    
+    cap.release()
+    return landmarks_data
+
+def analyze_video(video_path: str) -> dict:
+    """
+    Analyze video for body landmarks and body language feedback.
+    Returns a dict with landmarks and body_language keys.
+    """
+    # ...existing landmark extraction code...
+    # For example:
+    # landmarks_data = {"frames": [{"timestamp": "00:00:01", "landmarks": {...}}, ...]}
+    landmarks_data = extract_landmarks(video_path)  # Replace with your actual function
+
+    # Get body language feedback using the Together API
+    body_language_feedback = get_body_language_feedback(landmarks_data)
+
+    # Return both landmarks and feedback
+    return {
+        "landmarks": landmarks_data,
+        "body_language": body_language_feedback
     }
