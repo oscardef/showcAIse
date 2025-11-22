@@ -1,138 +1,199 @@
-# showcAIse - AI Presentation Coach
+# showcAIse - AI Presentation Coach 🎤
 
-An AI-powered presentation coaching tool that analyzes voice, speech patterns, and body language, then generates an improved avatar version of your presentation.
+Analyze your presentation skills with AI: speech patterns, filler words, pacing, and get actionable feedback.
 
-## Features
+## 🚀 Quick Start (5 Minutes)
 
-- 🎥 **Video Upload & Processing** - Upload presentation videos with chunked transfer support
-- 🗣️ **Speech Analysis** - Transcription, filler word detection, pacing analysis, tone variation
-- 👁️ **Computer Vision** - Eye contact tracking, posture analysis, confidence indicators
-- 🤖 **AI Avatar Generation** - Generate improved avatar versions of your presentation
-- 📊 **Interactive Dashboard** - Timeline visuals, metrics, and personalized recommendations
+### Prerequisites
+- Python 3.9+
+- Node.js 16+
+- FFmpeg (`brew install ffmpeg` on Mac)
 
-## Architecture
-
-Microservices architecture with 6 core services:
-
-- **Frontend** - React-based UI for video upload and results visualization
-- **API Gateway** - Authentication, routing, rate limiting
-- **Video Processing** - FFmpeg-based video/audio extraction and processing
-- **Speech Analysis** - Whisper transcription, filler detection, pace analysis (via Hugging Face/Together AI)
-- **Computer Vision** - Eye tracking, posture detection using MediaPipe and ML models
-- **Avatar Generation** - AI avatar synthesis for improved presentations
-- **Analytics** - Aggregation, scoring, and recommendations
-
-## Tech Stack
-
-- **Frontend**: React + TailwindCSS
-- **Backend**: FastAPI (Python)
-- **Databases**: PostgreSQL, Redis
-- **Storage**: MinIO (S3-compatible)
-- **ML APIs**: Hugging Face, Together AI
-- **Queue**: Celery + Redis
-- **Infrastructure**: Docker Compose
-
-## Prerequisites
-
-- Docker & Docker Compose
-- API Keys:
-  - Hugging Face API key (for ML models)
-  - Together AI API key (for inference)
-  - Optional: D-ID or HeyGen API key (for avatar generation)
-
-## Quick Start
-
-1. **Clone and setup environment**:
-```bash
-git clone https://github.com/oscardef/showcAIse.git
-cd showcAIse
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-2. **Start all services**:
-```bash
-docker-compose up -d
-```
-
-3. **Initialize database**:
-```bash
-./scripts/setup.sh
-```
-
-4. **Access the application**:
-- Frontend: http://localhost:80
-- API Gateway: http://localhost:8000
-- MinIO Console: http://localhost:9001
-- Grafana: http://localhost:3000
-
-## Development
-
-### Team Structure
-
-- **Developer 1**: Frontend + UX
-- **Developer 2**: API Gateway + Analytics
-- **Developer 3**: Video Processing + Computer Vision
-- **Developer 4**: Speech Analysis + Avatar Generation
-
-### Running individual services
+### Setup & Run
 
 ```bash
-# Start only specific services
-docker-compose up frontend api-gateway postgres redis
+# 1. Backend Setup
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-# View logs for a service
-docker-compose logs -f speech-analysis
+# Optional: Add OpenAI API key for real transcription
+export OPENAI_API_KEY=your_key_here
 
-# Restart a service
-docker-compose restart video-processing
+# Start backend (runs on port 5000)
+python main.py
 
-# Run tests
-docker-compose run --rm api-gateway pytest
+# 2. Frontend Setup (new terminal)
+cd frontend
+npm install
+npm start  # Opens http://localhost:3000
 ```
 
-### Development mode
+### Test It!
+1. Open http://localhost:3000
+2. Upload a short video (30 sec - 2 min recommended)
+3. Wait ~30 seconds for analysis
+4. View your results!
 
-```bash
-# Use dev override for hot-reloading
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
-```
+## 🎯 What It Does
 
-## Project Structure
+**Current Features:**
+- ✅ Video upload (drag & drop)
+- ✅ Audio extraction (FFmpeg)
+- ✅ Speech transcription (Whisper API or mock)
+- ✅ Filler word detection (um, uh, like, etc.)
+- ✅ Speaking pace analysis (WPM)
+- ✅ AI-generated recommendations
+
+**Coming Soon:**
+- 🚧 Body language analysis (eye contact, posture)
+- 🚧 Timeline visualization
+- 🚧 Export PDF reports
+
+## 📁 Project Structure
 
 ```
 showcAIse/
-├── frontend/              # React frontend
-├── services/
-│   ├── api-gateway/       # API routing & auth
-│   ├── video-processing/  # Video/audio extraction
-│   ├── speech-analysis/   # Transcription & speech metrics
-│   ├── computer-vision/   # Eye tracking & posture
-│   ├── avatar-generation/ # AI avatar synthesis
-│   ├── analytics/         # Reporting & recommendations
-│   └── shared/            # Common utilities
-├── infrastructure/        # Nginx, monitoring configs
-├── scripts/               # Setup and utility scripts
-└── docs/                  # Documentation
+├── backend/          # FastAPI server
+│   ├── main.py       # API endpoints
+│   ├── analyzer.py   # Speech analysis logic
+│   └── requirements.txt
+├── frontend/         # React app
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── Upload.tsx
+│   │   └── Results.tsx
+│   └── package.json
+└── README.md
 ```
 
-## Documentation
+## 🔧 Configuration
 
-- [API Documentation](docs/API.md)
-- [Setup Guide](docs/SETUP.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Development Workflow](docs/DEVELOPMENT.md)
+### Backend (.env or export)
+```bash
+OPENAI_API_KEY=sk-...        # Optional: For Whisper transcription
+PORT=5000                     # Default: 5000
+```
 
-## License
+### Frontend (.env.local)
+```bash
+REACT_APP_API_URL=http://localhost:5000
+```
 
-MIT License - See LICENSE file for details
+## 🐛 Troubleshooting
 
-## Contributing
+**"FFmpeg not found"**
+```bash
+# Mac
+brew install ffmpeg
 
-1. Create a feature branch from `main`
-2. Implement your changes with tests
-3. Submit a pull request with clear description
+# Ubuntu/Debian
+sudo apt install ffmpeg
 
-## Support
+# Windows
+# Download from: https://ffmpeg.org/download.html
+```
 
-For issues and questions, please open a GitHub issue.
+**"Port already in use"**
+```bash
+# Backend: Change PORT in backend/main.py
+# Frontend: Run with PORT=3001 npm start
+```
+
+**"Module not found" errors**
+```bash
+# Backend
+cd backend && pip install -r requirements.txt
+
+# Frontend
+cd frontend && npm install
+```
+
+## 🎬 Development Tips
+
+**Use short test videos:**
+- Start with 30-60 second clips
+- Keep under 5 minutes for testing
+- MP4 format works best
+
+**Without API key:**
+- System works with mock data
+- Great for UI/UX development
+- Add real API key when ready
+
+**Team workflow:**
+- One person: Backend features
+- One person: Frontend UI/UX
+- One person: Analysis algorithms
+- One person: Testing & documentation
+
+## 📊 API Reference
+
+### Upload Video
+```bash
+POST /api/upload
+Content-Type: multipart/form-data
+
+FormData: video=@presentation.mp4
+
+Response:
+{
+  "session_id": "abc123",
+  "status": "completed",
+  "results": {
+    "transcript": "Hello everyone...",
+    "word_count": 245,
+    "filler_count": 8,
+    "wpm": 147,
+    "recommendations": [...]
+  }
+}
+```
+
+### Get Session Results
+```bash
+GET /api/session/{session_id}
+
+Response: Same as upload response
+```
+
+## 🚀 Deployment (Optional)
+
+**Backend:**
+- Railway.app (recommended)
+- Render.com
+- Fly.io
+
+**Frontend:**
+- Vercel (recommended)
+- Netlify
+- GitHub Pages
+
+## 🤝 Contributing
+
+This is a hackathon project! Feel free to:
+- Add new analysis features
+- Improve UI/UX
+- Fix bugs
+- Add tests
+
+## 📝 License
+
+MIT License - Use freely for your projects!
+
+## 🎯 Hackathon Strategy
+
+**Hour 1-2:** Get basic system working (this is done!)
+**Hour 3-4:** Polish UI, add graphs/charts
+**Hour 5-6:** Add one advanced feature (body language OR avatar)
+**Hour 7-8:** Testing, bug fixes, sample videos
+**Hour 9-10:** Demo prep, presentation slides
+
+**Demo Tips:**
+- Use a good sample video showing clear improvements
+- Practice your pitch (2-3 minutes)
+- Show before/after metrics
+- Emphasize AI/ML components
+
+Good luck! 🎤✨
