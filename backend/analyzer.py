@@ -68,20 +68,84 @@ def transcribe_audio(audio_path: str) -> str:
         The results have been, like, really good and we're excited about the future."""
 
 
-def analyze_speech(transcript: str) -> Dict:
+def find_filler_positions(transcript: str) -> List[tuple]:
     """
-    Analyze speech patterns: filler words, pacing, recommendations
+    Find positions of filler words in transcript
+    Returns list of (start_pos, end_pos, filler_word)
     """
-    # Common filler words
     fillers = [
         r'\bum\b', r'\buh\b', r'\blike\b', r'\byou know\b',
         r'\bso\b', r'\bactually\b', r'\bbasically\b', r'\bliterally\b'
     ]
     
-    # Count filler words
-    filler_count = 0
-    for filler in fillers:
-        filler_count += len(re.findall(filler, transcript.lower()))
+    filler_positions = []
+    for filler_pattern in fillers:
+        for match in re.finditer(filler_pattern, transcript.lower()):
+            filler_positions.append((
+                match.start(),
+                match.end(),
+                match.group()
+            ))
+    
+    # Sort by position
+    filler_positions.sort(key=lambda x: x[0])
+    return filler_positions
+
+
+def generate_timeline_data(transcript: str, duration_minutes: float) -> List[Dict]:
+    """
+    Generate timeline data showing pacing throughout presentation
+    Splits into segments for visualization
+    """
+    words = transcript.split()
+    words_per_segment = max(1, len(words) // 10)  # Split into ~10 segments
+    
+    timeline = []
+    for i in range(0, len(words), words_per_segment):
+        segment_words = words[i:i + words_per_segment]
+        segment_text = " ".join(segment_words)
+        
+        # Calculate WPM for this segment
+        segment_duration = (len(segment_words) * 0.4) / 60  # 0.4 sec per word
+        segment_wpm = int(len(segment_words) / segment_duration) if segment_duration > 0 else 150
+        
+        # Count fillers in segment
+        filler_count = sum(
+            len(re.findall(filler, segment_text.lower()))
+            for filler in [r'\bum\b', r'\buh\b', r'\blike\b', r'\byou know\b']
+        )
+        
+        # Calculate confidence score (0-100)
+        confidence = 100
+        if segment_wpm > 180:
+            confidence -= 30
+        elif segment_wpm < 100:
+            confidence -= 20
+        
+        if filler_count > len(segment_words) * 0.1:
+            confidence -= 40
+        elif filler_count > len(segment_words) * 0.05:
+            confidence -= 20
+        
+        confidence = max(0, confidence)
+        
+        timeline.append({
+            "segment": i // words_per_segment + 1,
+            "wpm": segment_wpm,
+            "confidence": confidence,
+            "filler_count": filler_count
+        })
+    
+    return timeline
+
+
+def analyze_speech(transcript: str) -> Dict:
+    """
+    Analyze speech patterns: filler words, pacing, recommendations
+    """
+    # Find filler word positions
+    filler_positions = find_filler_positions(transcript)
+    filler_count = len(filler_positions)
     
     # Word count and speaking pace
     words = transcript.split()
@@ -91,43 +155,70 @@ def analyze_speech(transcript: str) -> Dict:
     duration_minutes = (word_count * 0.4) / 60
     wpm = int(word_count / duration_minutes) if duration_minutes > 0 else 150
     
+    # Generate timeline data
+    timeline = generate_timeline_data(transcript, duration_minutes)
+    
+    # Calculate overall confidence (average from timeline)
+    avg_confidence = sum(t["confidence"] for t in timeline) / len(timeline) if timeline else 70
+    
     # Generate recommendations
     recommendations = []
     
     if filler_count > word_count * 0.05:  # More than 5% fillers
-        recommendations.append(
-            "🎯 Reduce filler words: Try pausing instead of using 'um' or 'like'"
-        )
+        recommendations.append({
+            "icon": "🎯",
+            "title": "Reduce filler words",
+            "description": f"You used {filler_count} filler words. Try pausing instead of using 'um' or 'like'",
+            "severity": "high" if filler_count > word_count * 0.1 else "medium"
+        })
     
     if wpm > 160:
-        recommendations.append(
-            "🐢 Slow down: You're speaking quite fast. Aim for 130-150 words per minute"
-        )
+        recommendations.append({
+            "icon": "🐢",
+            "title": "Slow down your pace",
+            "description": f"You're speaking at {wpm} WPM. Aim for 130-150 words per minute for clarity",
+            "severity": "medium"
+        })
     elif wpm < 120:
-        recommendations.append(
-            "⚡ Pick up the pace: Speaking a bit faster will keep your audience engaged"
-        )
+        recommendations.append({
+            "icon": "⚡",
+            "title": "Pick up the pace",
+            "description": f"You're speaking at {wpm} WPM. Speaking a bit faster will keep your audience engaged",
+            "severity": "low"
+        })
     
     if word_count < 100:
-        recommendations.append(
-            "📝 Elaborate more: Add examples and details to make your presentation richer"
-        )
+        recommendations.append({
+            "icon": "📝",
+            "title": "Elaborate more",
+            "description": "Add examples and details to make your presentation richer",
+            "severity": "low"
+        })
     
     if not any(q in transcript for q in ['?', 'question', 'what', 'how', 'why']):
-        recommendations.append(
-            "❓ Engage your audience: Try asking rhetorical questions"
-        )
+        recommendations.append({
+            "icon": "❓",
+            "title": "Engage your audience",
+            "description": "Try asking rhetorical questions to keep listeners involved",
+            "severity": "low"
+        })
     
-    if recommendations == []:
-        recommendations.append(
-            "✨ Great job! Your speaking pace and word choice are excellent"
-        )
+    if len(recommendations) == 0:
+        recommendations.append({
+            "icon": "✨",
+            "title": "Great job!",
+            "description": "Your speaking pace and word choice are excellent",
+            "severity": "success"
+        })
     
     return {
         "transcript": transcript,
         "word_count": word_count,
         "filler_count": filler_count,
+        "filler_positions": filler_positions,
         "wpm": wpm,
         "duration_minutes": round(duration_minutes, 1),
+        "confidence_score": round(avg_confidence, 1),
+        "timeline": timeline,
         "recommendations": recommendations
     }

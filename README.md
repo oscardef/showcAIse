@@ -8,6 +8,7 @@ Analyze your presentation skills with AI: speech patterns, filler words, pacing,
 - Python 3.9+
 - Node.js 16+
 - FFmpeg (`brew install ffmpeg` on Mac)
+- Together AI API key (shared via Discord)
 
 ### Setup & Run
 
@@ -18,13 +19,18 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Add Together AI API key for real transcription
+# 2. Configure API Key (IMPORTANT!)
+# Option A: Export in terminal (temporary, for testing)
 export TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
 
-# Start backend (runs on port 8000)
+# Option B: Create .env file (recommended, persists between sessions)
+cp .env.example .env
+# Then edit .env and paste the API key from Discord
+
+# 3. Start backend (runs on port 8000)
 python main.py
 
-# 2. Frontend Setup (new terminal)
+# 4. Frontend Setup (new terminal)
 cd frontend
 npm install
 npm start  # Opens http://localhost:3000
@@ -70,14 +76,42 @@ showcAIse/
 
 ## 🔧 Configuration
 
-### Backend (.env or export)
+### Backend API Key Setup
+
+**Method 1: Environment Variable (Quick Test)**
 ```bash
-TOGETHER_API_KEY=tgp_v1_...  # Required: For Whisper transcription
-PORT=8000                     # Default: 8000
+# Mac/Linux
+export TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
+
+# Windows (PowerShell)
+$env:TOGETHER_API_KEY="tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4"
+
+# Windows (CMD)
+set TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
 ```
 
-### Frontend (.env.local)
+**Method 2: .env File (Recommended for Team)**
 ```bash
+# 1. Go to backend directory
+cd backend
+
+# 2. Copy the template
+cp .env.example .env
+
+# 3. Edit backend/.env and add the API key from Discord:
+TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
+PORT=8000
+```
+
+**Note for Team:**
+- ✅ `.env` is gitignored - safe to add API key locally
+- ✅ Share the key via Discord, not GitHub
+- ✅ Each teammate creates their own `.env` file
+- ✅ `.env.example` shows the format (no real key)
+
+### Frontend Configuration (Optional)
+```bash
+# Create frontend/.env.local if needed
 REACT_APP_API_URL=http://localhost:8000
 ```
 

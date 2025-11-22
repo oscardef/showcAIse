@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Dict
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from analyzer import extract_audio, transcribe_audio, analyze_speech
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI(title="showcAIse API")
 
