@@ -7,7 +7,8 @@ AI-powered presentation analysis tool that provides instant feedback on your spe
 - **Smart Analysis**: Detects strong moments and areas for improvement
 - **Confidence Scoring**: Advanced algorithm analyzing pace, fillers, sentiment, and language quality
 - **Segment-Specific Feedback**: Play and review individual moments with categorized insights
-- **Clean Professional UI**: Focused 3-tab interface (Moments, Recommendations, Transcript)
+- **Avatar Generator** ✨ NEW: Generate a "perfect" presentation with all improvements applied
+- **Clean Professional UI**: Focused 4-tab interface (Moments, Avatar Generator, Recommendations, Transcript)
 - **Video Playback**: Segment-only player that isolates specific moments for focused review
 - **Actionable Recommendations**: Specific, prioritized suggestions for improvement
 
@@ -16,6 +17,7 @@ AI-powered presentation analysis tool that provides instant feedback on your spe
 ### Prerequisites
 - Docker Desktop ([Download](https://www.docker.com/products/docker-desktop))
 - Together AI API key ([Get one here](https://together.ai))
+- Hugging Face API token ([Get one here](https://huggingface.co/settings/tokens)) - for avatar generation
 
 ### Setup & Run
 
@@ -24,10 +26,12 @@ AI-powered presentation analysis tool that provides instant feedback on your spe
 git clone https://github.com/oscardef/showcAIse.git
 cd showcAIse
 
-# 2. Configure API key
+# 2. Configure API keys
 cd backend
 cp .env.example .env
-# Edit .env and add: TOGETHER_API_KEY="your-key-here"
+# Edit .env and add:
+# TOGETHER_API_KEY="your-together-key"
+# HF_API_TOKEN="your-huggingface-token"
 
 # 3. Start with Docker
 cd ..
@@ -131,11 +135,20 @@ Frontend runs at http://localhost:3000
 - **Weak Moments**: Specific issues + improvement suggestions
 - Segment-only video player (plays just that moment)
 
-**2. Recommendations Tab**
+**2. Avatar Generator Tab** ✨ NEW
+- Generate a "perfect" presentation applying all feedback
+- Removes all filler words automatically
+- Optimizes pacing to ideal 145 WPM
+- Replaces weak/uncertain language with confident alternatives
+- Generates improved script with TTS audio
+- Shows before/after stats comparison
+- Download improved script and audio
+
+**3. Recommendations Tab**
 - Priority actions (top 3 critical improvements)
 - Additional suggestions with specific steps
 
-**3. Transcript Tab**
+**4. Transcript Tab**
 - Full text with filler word highlighting
 - Easy reference for detailed review
 

@@ -5,11 +5,12 @@ import os
 import uuid
 from pathlib import Path
 from typing import Dict
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from analyzer import extract_audio, transcribe_audio, analyze_speech
+from avatar_generator import generate_avatar_video, extract_first_frame
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,6 +36,10 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 # Create videos directory for serving video files
 VIDEOS_DIR = Path("videos")
 VIDEOS_DIR.mkdir(exist_ok=True)
+
+# Create avatars directory for generated content
+AVATARS_DIR = Path("avatars")
+AVATARS_DIR.mkdir(exist_ok=True)
 
 
 @app.get("/")
@@ -125,6 +130,63 @@ async def get_video(session_id: str):
         path=str(video_path),
         media_type="video/mp4",
         headers={"Accept-Ranges": "bytes"}
+    )
+
+
+@app.post("/api/avatar/generate/{session_id}")
+async def generate_avatar(session_id: str, background_tasks: BackgroundTasks):
+    """
+    Generate improved avatar presentation based on analysis feedback.
+    This creates a "perfect" version applying all recommendations.
+    """
+    if session_id not in sessions:
+        raise HTTPException(404, "Session not found")
+    
+    session_data = sessions[session_id]
+    analysis = session_data.get("results", {})
+    
+    # Extract reference frame from original video
+    video_path = VIDEOS_DIR / f"{session_id}.mp4"
+    reference_image = AVATARS_DIR / f"{session_id}_reference.jpg"
+    
+    if video_path.exists():
+        extract_first_frame(video_path, reference_image)
+    
+    # Generate avatar video (async)
+    print(f"[{session_id}] Starting avatar generation...")
+    avatar_result = await generate_avatar_video(session_id, analysis, reference_image)
+    
+    # Store avatar data in session
+    session_data["avatar"] = avatar_result
+    sessions[session_id] = session_data
+    
+    return avatar_result
+
+
+@app.get("/api/avatar/{session_id}")
+async def get_avatar_status(session_id: str):
+    """Get avatar generation status and results"""
+    if session_id not in sessions:
+        raise HTTPException(404, "Session not found")
+    
+    session_data = sessions[session_id]
+    avatar_data = session_data.get("avatar")
+    
+    if not avatar_data:
+        raise HTTPException(404, "Avatar not generated yet. Call /api/avatar/generate first.")
+    
+    return avatar_data
+
+
+@app.get("/api/avatar/audio/{session_id}")
+async def get_avatar_audio(session_id: str):
+    """Serve generated TTS audio for improved presentation"""
+    audio_path = AVATARS_DIR / f"{session_id}_improved.wav"
+    if not audio_path.exists():
+        raise HTTPException(404, "Avatar audio not found")
+    return FileResponse(
+        path=str(audio_path),
+        media_type="audio/wav"
     )
 
 
