@@ -1,0 +1,313 @@
+import React from 'react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+
+function Results({ data, onBack }) {
+  if (!data || !data.results) {
+    return (
+      <div className="card">
+        <div className="loading">
+          <div className="spinner"></div>
+          <p>Loading results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { results } = data;
+  const sentiment = results.sentiment_analysis || {};
+
+  const highlightFillers = (transcript, fillerPositions) => {
+    if (!fillerPositions || fillerPositions.length === 0) {
+      return <span>{transcript}</span>;
+    }
+
+    const segments = [];
+    let lastIndex = 0;
+
+    fillerPositions.forEach(([start, end, filler]) => {
+      if (start > lastIndex) {
+        segments.push(<span key={`text-${lastIndex}`}>{transcript.substring(lastIndex, start)}</span>);
+      }
+      segments.push(<mark key={`filler-${start}`} className="filler-highlight">{transcript.substring(start, end)}</mark>);
+      lastIndex = end;
+    });
+
+    if (lastIndex < transcript.length) {
+      segments.push(<span key={`text-${lastIndex}`}>{transcript.substring(lastIndex)}</span>);
+    }
+
+    return <>{segments}</>;
+  };
+
+  const getSeverityColor = (severity) => {
+    const colors = { high: '#ef4444', medium: '#f59e0b', low: '#3b82f6', success: '#10b981' };
+    return colors[severity] || '#6b7280';
+  };
+
+  const getSentimentEmoji = (sent) => {
+    const emojis = { POSITIVE: '😊', NEGATIVE: '😟' };
+    return emojis[sent?.overall_sentiment] || '😐';
+  };
+
+  const getSentimentColor = (sent) => {
+    const colors = { POSITIVE: '#10b981', NEGATIVE: '#ef4444' };
+    return colors[sent?.overall_sentiment] || '#6b7280';
+  };
+
+  const COLORS = { positive: '#10b981', negative: '#ef4444', neutral: '#6b7280' };
+
+  const sentimentChartData = sentiment.emotion_distribution ? [
+    { name: 'Positive', value: sentiment.emotion_distribution.positive },
+    { name: 'Negative', value: sentiment.emotion_distribution.negative },
+    { name: 'Neutral', value: sentiment.emotion_distribution.neutral }
+  ].filter(item => item.value > 0) : [];
+
+  return (
+    <div className="results-container">
+      <div className="results-header">
+        <div className="header-content">
+          <h1>📊 Presentation Analysis</h1>
+          <div className="header-badges">
+            <div className="score-badge" style={{ 
+              backgroundColor: results.confidence_score > 70 ? '#10b981' : results.confidence_score > 50 ? '#f59e0b' : '#ef4444'
+            }}>
+              {results.confidence_score}% Confidence
+            </div>
+            {sentiment.overall_sentiment && sentiment.overall_sentiment !== 'unavailable' && (
+              <div className="sentiment-badge" style={{ backgroundColor: getSentimentColor(sentiment) }}>
+                {getSentimentEmoji(sentiment)} {sentiment.tone}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="metrics-grid">
+        <div className="metric-card modern">
+          <div className="metric-icon">📝</div>
+          <div className="metric-value">{results.word_count}</div>
+          <div className="metric-label">Words</div>
+        </div>
+        <div className="metric-card modern">
+          <div className="metric-icon">⚡</div>
+          <div className="metric-value">{results.wpm}</div>
+          <div className="metric-label">WPM</div>
+        </div>
+        <div className="metric-card modern">
+          <div className="metric-icon">🎯</div>
+          <div className="metric-value">{results.filler_count}</div>
+          <div className="metric-label">Fillers</div>
+        </div>
+        <div className="metric-card modern">
+          <div className="metric-icon">⏱️</div>
+          <div className="metric-value">{results.duration_minutes}m</div>
+          <div className="metric-label">Duration</div>
+        </div>
+      </div>
+
+      {sentiment.overall_sentiment && sentiment.overall_sentiment !== 'unavailable' && (
+        <div className="sentiment-section card">
+          <h2>🎭 Sentiment & Tone Analysis</h2>
+          <div className="sentiment-content">
+            <div className="sentiment-overview">
+              <div className="sentiment-main">
+                <div className="sentiment-emoji">{getSentimentEmoji(sentiment)}</div>
+                <div className="sentiment-details">
+                  <h3 style={{ color: getSentimentColor(sentiment) }}>{sentiment.overall_sentiment}</h3>
+                  <p className="sentiment-tone">Tone: <strong>{sentiment.tone}</strong></p>
+                  <p className="sentiment-score">
+                    Score: {(sentiment.sentiment_score * 100).toFixed(0)}% 
+                    <span className="sentiment-confidence"> (Confidence: {(sentiment.confidence * 100).toFixed(0)}%)</span>
+                  </p>
+                </div>
+              </div>
+              
+              {sentimentChartData.length > 0 && (
+                <div className="sentiment-chart">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={sentimentChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
+                        outerRadius={80}
+                        dataKey="value"
+                      >
+                        {sentimentChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[entry.name.toLowerCase()]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            {sentiment.segments && sentiment.segments.length > 0 && (
+              <div className="sentiment-segments">
+                <h4>Sentiment Flow Through Presentation</h4>
+                <div className="segments-list">
+                  {sentiment.segments.map((seg, idx) => (
+                    <div key={idx} className="segment-item" style={{
+                      backgroundColor: seg.sentiment === 'POSITIVE' ? '#d1fae5' : '#fee2e2'
+                    }}>
+                      <span className="segment-number">#{seg.segment}</span>
+                      <span className={`segment-sentiment ${seg.sentiment.toLowerCase()}`}>
+                        {seg.sentiment === 'POSITIVE' ? '👍' : '👎'}
+                      </span>
+                      <span className="segment-confidence">{(seg.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {results.priority_actions && results.priority_actions.length > 0 && (
+        <div className="priority-section card">
+          <h2>🎯 Top 3 Priority Actions</h2>
+          <div className="priority-list">
+            {results.priority_actions.map((action, idx) => (
+              <div key={idx} className="priority-item">
+                <div className="priority-number">{idx + 1}</div>
+                <div className="priority-content">
+                  <h4>{action.title}</h4>
+                  <p className="action-text">{action.action}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {results.timeline && results.timeline.length > 0 && (
+        <div className="chart-section card">
+          <h2>📈 Performance Over Time</h2>
+          
+          <div className="chart-container">
+            <h3>Confidence Timeline</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={results.timeline}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="segment" />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="confidence" stroke="#8b5cf6" strokeWidth={3} name="Confidence" dot={{ fill: '#8b5cf6', r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="chart-container">
+            <h3>Speaking Pace & Fillers</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={results.timeline}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="segment" />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" />
+                <Tooltip />
+                <Legend />
+                <Bar yAxisId="left" dataKey="wpm" fill="#3b82f6" name="Words/Min" radius={[8, 8, 0, 0]} />
+                <Bar yAxisId="right" dataKey="filler_count" fill="#ef4444" name="Fillers" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      <div className="recommendations-section card">
+        <h2>💡 Detailed Recommendations</h2>
+        <div className="recommendations-list">
+          {results.recommendations.map((rec, idx) => (
+            <div key={idx} className="recommendation-card" style={{ borderLeftColor: getSeverityColor(rec.severity) }}>
+              <div className="recommendation-header">
+                <span className="recommendation-icon">{rec.icon}</span>
+                <h3>{rec.title}</h3>
+              </div>
+              <p className="recommendation-description">{rec.description}</p>
+              {rec.action && (
+                <div className="action-box">
+                  <strong>💡 Action:</strong> {rec.action}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {results.metrics && (
+        <div className="metrics-section card">
+          <h2>📊 Detailed Speech Metrics</h2>
+          <div className="metrics-details">
+            <div className="metric-item">
+              <span className="metric-icon">📏</span>
+              <div>
+                <div className="metric-number">{results.avg_sentence_length}</div>
+                <div className="metric-desc">Avg Sentence Length</div>
+              </div>
+            </div>
+            <div className="metric-item">
+              <span className="metric-icon">❓</span>
+              <div>
+                <div className="metric-number">{results.metrics.questions}</div>
+                <div className="metric-desc">Questions Asked</div>
+              </div>
+            </div>
+            <div className="metric-item">
+              <span className="metric-icon">💪</span>
+              <div>
+                <div className="metric-number">{results.metrics.power_words}</div>
+                <div className="metric-desc">Power Words</div>
+              </div>
+            </div>
+            <div className="metric-item">
+              <span className="metric-icon">⚠️</span>
+              <div>
+                <div className="metric-number">{results.metrics.weak_words}</div>
+                <div className="metric-desc">Weak Phrases</div>
+              </div>
+            </div>
+          </div>
+          
+          {results.filler_breakdown && Object.keys(results.filler_breakdown).length > 0 && (
+            <div className="filler-breakdown">
+              <h3>🎯 Top Filler Words</h3>
+              <div className="filler-items">
+                {Object.entries(results.filler_breakdown).map(([word, count]) => (
+                  <div key={word} className="filler-item">
+                    <span className="filler-word">"{word}"</span>
+                    <span className="filler-badge">{count}×</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="transcript-section card">
+        <h2>📝 Full Transcript</h2>
+        <div className="transcript-box">
+          {highlightFillers(results.transcript, results.filler_positions)}
+        </div>
+        <div className="filler-legend">
+          <mark className="filler-highlight">Highlighted text</mark> shows detected filler words
+        </div>
+      </div>
+
+      <div className="results-footer">
+        <button className="btn btn-large" onClick={onBack}>
+          ← Analyze Another Video
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default Results;

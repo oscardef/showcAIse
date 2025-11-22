@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from analyzer import extract_audio, transcribe_audio, analyze_speech
 
@@ -30,6 +31,10 @@ sessions: Dict[str, dict] = {}
 # Create uploads directory
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Create videos directory for serving video files
+VIDEOS_DIR = Path("videos")
+VIDEOS_DIR.mkdir(exist_ok=True)
 
 
 @app.get("/")
@@ -55,6 +60,7 @@ async def upload_video(video: UploadFile):
     
     # Save uploaded video
     video_path = UPLOAD_DIR / f"{session_id}.mp4"
+    stored_video_path = VIDEOS_DIR / f"{session_id}.mp4"
     audio_path = UPLOAD_DIR / f"{session_id}.wav"
     
     try:
@@ -62,6 +68,10 @@ async def upload_video(video: UploadFile):
         with open(video_path, "wb") as f:
             content = await video.read()
             f.write(content)
+        
+        # Copy to videos directory for serving
+        import shutil
+        shutil.copy(str(video_path), str(stored_video_path))
         
         # Extract audio
         print(f"[{session_id}] Extracting audio...")
@@ -75,15 +85,16 @@ async def upload_video(video: UploadFile):
         print(f"[{session_id}] Analyzing speech patterns...")
         analysis = analyze_speech(transcript)
         
-        # Store results
+        # Store results with video reference
         session_data = {
             "session_id": session_id,
             "status": "completed",
+            "video_url": f"/api/video/{session_id}",
             "results": analysis
         }
         sessions[session_id] = session_data
         
-        # Cleanup files
+        # Cleanup temporary files
         video_path.unlink(missing_ok=True)
         audio_path.unlink(missing_ok=True)
         
@@ -102,6 +113,19 @@ async def get_session(session_id: str):
     if session_id not in sessions:
         raise HTTPException(404, "Session not found")
     return sessions[session_id]
+
+
+@app.get("/api/video/{session_id}")
+async def get_video(session_id: str):
+    """Serve video file for playback with timestamp navigation"""
+    video_path = VIDEOS_DIR / f"{session_id}.mp4"
+    if not video_path.exists():
+        raise HTTPException(404, "Video not found")
+    return FileResponse(
+        path=str(video_path),
+        media_type="video/mp4",
+        headers={"Accept-Ranges": "bytes"}
+    )
 
 
 if __name__ == "__main__":

@@ -4,8 +4,9 @@ Speech analysis module - Extract audio, transcribe, and analyze patterns
 import os
 import re
 import requests
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import ffmpeg
+from transformers import pipeline
 
 
 def extract_audio(video_path: str, audio_path: str) -> None:
@@ -68,6 +69,228 @@ def transcribe_audio(audio_path: str) -> str:
         The results have been, like, really good and we're excited about the future."""
 
 
+# Initialize sentiment analyzer globally (lazy loading)
+_sentiment_analyzer = None
+
+def get_sentiment_analyzer():
+    """Lazy load sentiment analyzer"""
+    global _sentiment_analyzer
+    if _sentiment_analyzer is None:
+        try:
+            print("🎭 Loading sentiment analysis model...")
+            _sentiment_analyzer = pipeline(
+                "sentiment-analysis",
+                model="distilbert-base-uncased-finetuned-sst-2-english"
+            )
+            print("✅ Sentiment model loaded")
+        except Exception as e:
+            print(f"⚠️  Failed to load sentiment model: {e}")
+            _sentiment_analyzer = None
+    return _sentiment_analyzer
+
+
+def analyze_sentiment_and_tone(transcript: str, words: List[str]) -> Dict:
+    """
+    Enhanced sentiment analysis with temporal patterns and actionable insights
+    Returns detailed sentiment metrics, trends, and specific moments for review
+    """
+    analyzer = get_sentiment_analyzer()
+    
+    if not analyzer:
+        return {
+            "overall_sentiment": "NEUTRAL",
+            "sentiment_score": 0.5,
+            "confidence": 0.0,
+            "tone": "unavailable",
+            "emotion_distribution": {},
+            "segments": [],
+            "trends": {},
+            "insights": []
+        }
+    
+    # Split into sentences for granular analysis
+    sentences = re.split(r'[.!?]+', transcript)
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 10]
+    
+    if not sentences:
+        return {
+            "overall_sentiment": "NEUTRAL",
+            "sentiment_score": 0.5,
+            "confidence": 0.0,
+            "tone": "neutral",
+            "emotion_distribution": {},
+            "segments": [],
+            "trends": {},
+            "insights": []
+        }
+    
+    try:
+        # Calculate words per sentence for timestamp estimation
+        total_words = len(words)
+        words_per_sentence = total_words / len(sentences) if sentences else 0
+        cumulative_words = 0
+        
+        # Analyze sentiment for each sentence
+        segment_results = []
+        positive_count = 0
+        negative_count = 0
+        total_score = 0
+        sentiment_timeline = []
+        negative_moments = []
+        positive_peaks = []
+        
+        for i, sentence in enumerate(sentences):
+            try:
+                # Estimate timestamp based on word position
+                sentence_word_count = len(sentence.split())
+                start_second = int((cumulative_words / total_words) * len(words) * 0.4) if total_words > 0 else 0
+                end_second = int(((cumulative_words + sentence_word_count) / total_words) * len(words) * 0.4) if total_words > 0 else 0
+                cumulative_words += sentence_word_count
+                
+                result = analyzer(sentence[:512])[0]
+                sentiment = result['label']
+                score = result['score']
+                
+                segment_data = {
+                    "segment": i + 1,
+                    "sentiment": sentiment,
+                    "confidence": round(score, 3),
+                    "text": sentence[:100] + "..." if len(sentence) > 100 else sentence,
+                    "timestamp_start": start_second,
+                    "timestamp_end": end_second,
+                    "duration": end_second - start_second
+                }
+                
+                if sentiment == 'POSITIVE':
+                    positive_count += 1
+                    total_score += score
+                    sentiment_timeline.append(1)
+                    if score > 0.95:
+                        positive_peaks.append(segment_data)
+                else:
+                    negative_count += 1
+                    total_score += (1 - score)
+                    sentiment_timeline.append(-1)
+                    if score > 0.80:  # High confidence negative
+                        negative_moments.append(segment_data)
+                
+                segment_results.append(segment_data)
+            except Exception as e:
+                print(f"Segment {i} error: {e}")
+                sentiment_timeline.append(0)
+                continue
+        
+        # Calculate metrics
+        total_segments = len(segment_results)
+        if total_segments == 0:
+            return {
+                "overall_sentiment": "NEUTRAL",
+                "sentiment_score": 0.5,
+                "confidence": 0.0,
+                "tone": "neutral",
+                "emotion_distribution": {},
+                "segments": [],
+                "trends": {},
+                "insights": []
+            }
+        
+        positive_ratio = positive_count / total_segments
+        negative_ratio = negative_count / total_segments
+        avg_confidence = total_score / total_segments
+        
+        # Analyze sentiment trends (beginning vs end)
+        first_third = sentiment_timeline[:len(sentiment_timeline)//3]
+        last_third = sentiment_timeline[-len(sentiment_timeline)//3:]
+        
+        trend_start = sum(first_third) / len(first_third) if first_third else 0
+        trend_end = sum(last_third) / len(last_third) if last_third else 0
+        trend_direction = "improving" if trend_end > trend_start + 0.2 else ("declining" if trend_end < trend_start - 0.2 else "stable")
+        
+        # Determine overall sentiment and tone
+        if positive_ratio > 0.65:
+            overall_sentiment = "POSITIVE"
+            tone = "Confident and engaging"
+        elif positive_ratio < 0.35:
+            overall_sentiment = "NEGATIVE"
+            tone = "Uncertain or defensive"
+        else:
+            overall_sentiment = "NEUTRAL"
+            tone = "Measured and balanced"
+        
+        # Generate actionable insights
+        insights = []
+        
+        if negative_ratio > 0.4:
+            insights.append({
+                "type": "warning",
+                "title": "High negative sentiment detected",
+                "description": f"{int(negative_ratio * 100)}% of your presentation conveys uncertainty or negativity",
+                "action": "Review the highlighted moments and rephrase using affirmative language",
+                "severity": "high"
+            })
+        
+        if trend_direction == "declining":
+            insights.append({
+                "type": "warning",
+                "title": "Sentiment declines toward the end",
+                "description": "Your closing leaves a weaker impression than your opening",
+                "action": "Strengthen your conclusion with confident, forward-looking statements",
+                "severity": "medium"
+            })
+        
+        if len(negative_moments) > 0:
+            insights.append({
+                "type": "info",
+                "title": f"{len(negative_moments)} moments need attention",
+                "description": "These segments show high-confidence negative sentiment",
+                "action": "Click 'Review Moments' to watch and improve these specific parts",
+                "severity": "medium"
+            })
+        
+        if positive_ratio > 0.7 and trend_direction != "declining":
+            insights.append({
+                "type": "success",
+                "title": "Strong positive delivery",
+                "description": "Your presentation conveys confidence and engagement throughout",
+                "action": "Maintain this energy and consider this your baseline for future presentations",
+                "severity": "low"
+            })
+        
+        return {
+            "overall_sentiment": overall_sentiment,
+            "sentiment_score": round(positive_ratio, 3),
+            "confidence": round(avg_confidence, 3),
+            "tone": tone,
+            "emotion_distribution": {
+                "positive": round(positive_ratio * 100, 1),
+                "negative": round(negative_ratio * 100, 1),
+                "neutral": round((1 - positive_ratio - negative_ratio) * 100, 1)
+            },
+            "segments": segment_results,
+            "negative_moments": negative_moments[:5],  # Top 5 negative moments
+            "positive_peaks": positive_peaks[:3],  # Top 3 positive peaks
+            "trends": {
+                "direction": trend_direction,
+                "start_sentiment": round(trend_start, 2),
+                "end_sentiment": round(trend_end, 2),
+                "consistency": round(1 - abs(trend_end - trend_start), 2)
+            },
+            "insights": insights
+        }
+    except Exception as e:
+        print(f"Sentiment analysis error: {e}")
+        return {
+            "overall_sentiment": "NEUTRAL",
+            "sentiment_score": 0.5,
+            "confidence": 0.0,
+            "tone": "neutral",
+            "emotion_distribution": {},
+            "segments": [],
+            "trends": {},
+            "insights": []
+        }
+
+
 def find_filler_positions(transcript: str) -> List[tuple]:
     """
     Find positions of filler words in transcript
@@ -92,51 +315,242 @@ def find_filler_positions(transcript: str) -> List[tuple]:
     return filler_positions
 
 
+def detect_key_segments(transcript: str, words: List[str], duration_minutes: float) -> List[Dict]:
+    """
+    Intelligently segment presentation into key parts based on:
+    - Sentence boundaries (natural breaks)
+    - Topic shifts (new paragraphs, transition words)
+    - Performance changes (filler spikes, pace changes)
+    
+    Similar to how chess.com detects key moves, we detect key moments
+    """
+    sentences = [s.strip() for s in re.split(r'[.!?]+', transcript) if s.strip()]
+    if not sentences:
+        return []
+    
+    segments = []
+    current_segment_sentences = []
+    current_word_count = 0
+    cumulative_words = 0
+    
+    # Target 20-50 words per segment (natural speaking chunks)
+    min_words_per_segment = 20
+    max_words_per_segment = 50
+    
+    for i, sentence in enumerate(sentences):
+        sentence_words = sentence.split()
+        sentence_word_count = len(sentence_words)
+        
+        # Check for topic transition indicators
+        transition_words = ['however', 'therefore', 'furthermore', 'additionally', 'finally', 
+                          'first', 'second', 'third', 'next', 'moving on', 'in conclusion',
+                          'let me', 'now', 'so', 'but', 'and now']
+        has_transition = any(sentence.lower().startswith(tw) for tw in transition_words)
+        
+        # Add sentence to current segment
+        current_segment_sentences.append(sentence)
+        current_word_count += sentence_word_count
+        
+        # Decide whether to close this segment
+        should_close = False
+        
+        # Close if we hit max words
+        if current_word_count >= max_words_per_segment:
+            should_close = True
+        # Close if we have enough words AND found a transition
+        elif current_word_count >= min_words_per_segment and has_transition:
+            should_close = True
+        # Close if this is the last sentence
+        elif i == len(sentences) - 1:
+            should_close = True
+        
+        if should_close and current_segment_sentences:
+            segment_text = '. '.join(current_segment_sentences) + '.'
+            segment_words = segment_text.split()
+            
+            # Calculate timestamp
+            start_second = int((cumulative_words / len(words)) * duration_minutes * 60) if len(words) > 0 else 0
+            cumulative_words += current_word_count
+            end_second = int((cumulative_words / len(words)) * duration_minutes * 60) if len(words) > 0 else 0
+            
+            segments.append({
+                'text': segment_text,
+                'word_count': current_word_count,
+                'start_time': start_second,
+                'end_time': end_second,
+                'duration': end_second - start_second
+            })
+            
+            current_segment_sentences = []
+            current_word_count = 0
+    
+    return segments
+
+
+def calculate_confidence_with_explanation(segment_text: str, segment_wpm: int, segment_words: List[str]) -> Tuple[int, str]:
+    """
+    Calculate confidence score with explanation of the algorithm.
+    
+    Confidence Score Breakdown:
+    - Base: 70 points
+    - Pacing (±20): Optimal WPM = 130-160 (conversational)
+    - Filler Words (±30): No fillers = bonus, >10% = major penalty  
+    - Sentence Length (±10): 15-20 words average is ideal
+    
+    Total range: 0-100
+    """
+    confidence = 70
+    explanations = []
+    
+    # 1. Pacing Analysis (±20 points)
+    if 130 <= segment_wpm <= 160:
+        confidence += 20
+        explanations.append(f"✓ Perfect pace ({segment_wpm} WPM)")
+    elif 110 <= segment_wpm < 130 or 160 < segment_wpm <= 180:
+        confidence += 10
+        explanations.append(f"~ Good pace ({segment_wpm} WPM)")
+    elif segment_wpm > 200:
+        confidence -= 20
+        explanations.append(f"✗ Too fast ({segment_wpm} WPM, aim for 130-160)")
+    elif segment_wpm < 100:
+        confidence -= 20
+        explanations.append(f"✗ Too slow ({segment_wpm} WPM, aim for 130-160)")
+    else:
+        explanations.append(f"~ Pace: {segment_wpm} WPM")
+    
+    # 2. Filler Words Analysis (±30 points)
+    filler_positions = find_filler_positions(segment_text)
+    filler_count = len(filler_positions)
+    filler_ratio = filler_count / len(segment_words) if segment_words else 0
+    
+    if filler_count == 0:
+        confidence += 10
+        explanations.append("✓ No filler words")
+    elif filler_ratio > 0.1:
+        confidence -= 30
+        explanations.append(f"✗ Too many fillers ({filler_count}, {int(filler_ratio*100)}% of words)")
+    elif filler_ratio > 0.05:
+        confidence -= 15
+        explanations.append(f"~ Some fillers ({filler_count}, {int(filler_ratio*100)}% of words)")
+    else:
+        explanations.append(f"✓ Minimal fillers ({filler_count})")
+    
+    # 3. Sentence Structure (±10 points)
+    sentences = [s.strip() for s in re.split(r'[.!?]+', segment_text) if s.strip()]
+    if sentences:
+        avg_sentence_len = len(segment_words) / len(sentences)
+        if 15 <= avg_sentence_len <= 20:
+            confidence += 10
+            explanations.append("✓ Clear sentence structure")
+        elif avg_sentence_len > 25:
+            confidence -= 10
+            explanations.append(f"~ Long sentences (avg {int(avg_sentence_len)} words)")
+    
+    confidence = max(0, min(100, confidence))
+    explanation = " | ".join(explanations)
+    
+    return confidence, explanation
+
+
 def generate_timeline_data(transcript: str, duration_minutes: float) -> List[Dict]:
     """
-    Generate timeline data showing pacing throughout presentation
-    Splits into segments for visualization
+    Generate timeline data using intelligent segmentation
     """
     words = transcript.split()
-    words_per_segment = max(1, len(words) // 10)  # Split into ~10 segments
+    segments = detect_key_segments(transcript, words, duration_minutes)
+    
+    if not segments:
+        # Fallback to simple single segment
+        return [{
+            "segment": 1,
+            "wpm": 150,
+            "confidence": 70,
+            "confidence_explanation": "Unable to segment",
+            "filler_count": 0,
+            "start_time": 0,
+            "end_time": int(duration_minutes * 60),
+            "duration": int(duration_minutes * 60),
+            "text_preview": transcript[:100] + '...' if len(transcript) > 100 else transcript
+        }]
     
     timeline = []
-    for i in range(0, len(words), words_per_segment):
-        segment_words = words[i:i + words_per_segment]
-        segment_text = " ".join(segment_words)
+    for i, seg in enumerate(segments):
+        segment_words = seg['text'].split()
+        segment_duration_min = seg['duration'] / 60
+        segment_wpm = int(len(segment_words) / segment_duration_min) if segment_duration_min > 0 else 150
         
-        # Calculate WPM for this segment
-        segment_duration = (len(segment_words) * 0.4) / 60  # 0.4 sec per word
-        segment_wpm = int(len(segment_words) / segment_duration) if segment_duration > 0 else 150
-        
-        # Count fillers in segment
-        filler_count = sum(
-            len(re.findall(filler, segment_text.lower()))
-            for filler in [r'\bum\b', r'\buh\b', r'\blike\b', r'\byou know\b']
+        # Calculate confidence with explanation
+        confidence, explanation = calculate_confidence_with_explanation(
+            seg['text'], segment_wpm, segment_words
         )
         
-        # Calculate confidence score (0-100)
-        confidence = 100
-        if segment_wpm > 180:
-            confidence -= 30
-        elif segment_wpm < 100:
-            confidence -= 20
-        
-        if filler_count > len(segment_words) * 0.1:
-            confidence -= 40
-        elif filler_count > len(segment_words) * 0.05:
-            confidence -= 20
-        
-        confidence = max(0, confidence)
+        # Count fillers
+        filler_positions = find_filler_positions(seg['text'])
+        filler_count = len(filler_positions)
         
         timeline.append({
-            "segment": i // words_per_segment + 1,
+            "segment": i + 1,
             "wpm": segment_wpm,
             "confidence": confidence,
-            "filler_count": filler_count
+            "confidence_explanation": explanation,
+            "filler_count": filler_count,
+            "start_time": seg['start_time'],
+            "end_time": seg['end_time'],
+            "duration": seg['duration'],
+            "text_preview": seg['text'][:100] + '...' if len(seg['text']) > 100 else seg['text']
         })
     
     return timeline
+
+
+def identify_key_clips(timeline: List[Dict], transcript: str) -> Dict:
+    """
+    Identify notable clips (both excellent and poor moments) for focused review.
+    Like chess.com showing key moves, we show key speaking moments.
+    """
+    if not timeline:
+        return {"good_clips": [], "bad_clips": [], "explanation": ""}
+    
+    # Sort by confidence to find extremes
+    sorted_segments = sorted(timeline, key=lambda x: x['confidence'])
+    
+    # Good clips: top 3 highest confidence segments
+    good_clips = []
+    for seg in sorted_segments[-3:][::-1]:  # Reverse to show best first
+        if seg['confidence'] >= 75:  # Only include truly good segments
+            good_clips.append({
+                "segment_num": seg['segment'],
+                "confidence": seg['confidence'],
+                "start_time": seg['start_time'],
+                "end_time": seg['end_time'],
+                "duration": seg['duration'],
+                "text_preview": seg['text_preview'],
+                "why_good": seg['confidence_explanation'],
+                "title": f"Strong Moment #{seg['segment']}"
+            })
+    
+    # Bad clips: bottom 3 lowest confidence segments  
+    bad_clips = []
+    for seg in sorted_segments[:3]:
+        if seg['confidence'] < 60:  # Only include problematic segments
+            bad_clips.append({
+                "segment_num": seg['segment'],
+                "confidence": seg['confidence'],
+                "start_time": seg['start_time'],
+                "end_time": seg['end_time'],
+                "duration": seg['duration'],
+                "text_preview": seg['text_preview'],
+                "why_bad": seg['confidence_explanation'],
+                "title": f"Needs Work - Segment #{seg['segment']}"
+            })
+    
+    explanation = f"Found {len(good_clips)} strong moments and {len(bad_clips)} moments that need improvement."
+    
+    return {
+        "good_clips": good_clips,
+        "bad_clips": bad_clips,
+        "explanation": explanation
+    }
 
 
 def analyze_speech(transcript: str) -> Dict:
@@ -157,11 +571,17 @@ def analyze_speech(transcript: str) -> Dict:
     duration_minutes = (word_count * 0.4) / 60
     wpm = int(word_count / duration_minutes) if duration_minutes > 0 else 150
     
-    # Generate timeline data
+    # Generate timeline data with intelligent segmentation
     timeline = generate_timeline_data(transcript, duration_minutes)
     
     # Calculate overall confidence (average from timeline)
     avg_confidence = sum(t["confidence"] for t in timeline) / len(timeline) if timeline else 70
+    
+    # Identify key clips for review
+    key_clips = identify_key_clips(timeline, transcript)
+    
+    # Sentiment and tone analysis
+    sentiment_analysis = analyze_sentiment_and_tone(transcript, words)
     
     # Advanced analysis metrics
     avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
@@ -327,7 +747,9 @@ def analyze_speech(transcript: str) -> Dict:
         "wpm": wpm,
         "duration_minutes": round(duration_minutes, 1),
         "confidence_score": round(avg_confidence, 1),
+        "confidence_explanation": "Confidence = Pacing (±20) + Filler Control (±30) + Clear Structure (±10) from base of 70. Range: 0-100.",
         "timeline": timeline,
+        "key_clips": key_clips,
         "recommendations": recommendations,
         "priority_actions": [
             {
@@ -341,7 +763,8 @@ def analyze_speech(transcript: str) -> Dict:
             "weak_words": weak_words,
             "power_words": power_words,
             "passive_voice": passive_voice_indicators
-        }
+        },
+        "sentiment_analysis": sentiment_analysis
     }
 
 
