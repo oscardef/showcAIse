@@ -1,233 +1,254 @@
 # showcAIse - AI Presentation Coach 🎤
 
-Analyze your presentation skills with AI: speech patterns, filler words, pacing, and get actionable feedback.
+AI-powered presentation analysis tool built for a 10-hour hackathon. Upload a video, get instant feedback with actionable recommendations.
 
-## 🚀 Quick Start (5 Minutes)
+## 🚀 Quick Start (2 minutes with Docker)
 
 ### Prerequisites
-- Python 3.9+
-- Node.js 16+
-- FFmpeg (`brew install ffmpeg` on Mac)
-- Together AI API key (shared via Discord)
+- Docker Desktop ([Download here](https://www.docker.com/products/docker-desktop))
+- Together AI API key
 
 ### Setup & Run
 
 ```bash
-# 1. Backend Setup
+# 1. Clone repo
+git clone https://github.com/oscardef/showcAIse.git
+cd showcAIse
+
+# 2. Configure API key
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# 2. Configure API Key (IMPORTANT!)
-# Option A: Export in terminal (temporary, for testing)
-export TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
-
-# Option B: Create .env file (recommended, persists between sessions)
 cp .env.example .env
-# Then edit .env and paste the API key from Discord
+# Edit .env and add your Together AI API key
 
-# 3. Start backend (runs on port 8000)
-python main.py
-
-# 4. Frontend Setup (new terminal)
-cd frontend
-npm install
-npm start  # Opens http://localhost:3000
+# 3. Start with Docker Compose
+cd ..
+docker-compose up --build
 ```
 
-### Test It!
-1. Open http://localhost:3000
-2. Upload a short video (30 sec - 2 min recommended)
-3. Wait ~30 seconds for analysis
-4. View your results!
+**That's it!** Visit http://localhost:3000
+
+### Docker Commands
+
+```bash
+# Start (background)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+
+# Rebuild after changes
+docker-compose up --build
+```
+
+## 💻 Manual Setup (Without Docker)
+
+### Prerequisites
+- Python 3.12+
+- Node.js 18+
+- FFmpeg installed
+
+### Setup
+
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+
+# Frontend
+cd frontend
+npm install
+```
+
+### Configuration
+
+**Method 1: Environment Variable**
+```bash
+export TOGETHER_API_KEY="your-api-key-here"
+```
+
+**Method 2: .env File (Recommended)**
+```bash
+cd backend
+cp .env.example .env
+# Edit .env and add your API key
+```
+
+### Run
+
+```bash
+# Terminal 1 - Backend
+cd backend
+python3.12 main.py
+
+# Terminal 2 - Frontend  
+cd frontend
+npm start
+```
+
+Visit http://localhost:3000
 
 ## 🎯 What It Does
 
 **Current Features:**
-- ✅ Video upload (drag & drop)
-- ✅ Audio extraction (FFmpeg)
-- ✅ Speech transcription (Whisper API or mock)
-- ✅ Filler word detection (um, uh, like, etc.)
-- ✅ Speaking pace analysis (WPM)
-- ✅ AI-generated recommendations
-
-**Coming Soon:**
-- 🚧 Body language analysis (eye contact, posture)
-- 🚧 Timeline visualization
-- 🚧 Export PDF reports
+- 🎤 **Speech Transcription** - Together AI Whisper large-v3 model
+- 📊 **Timeline Visualization** - Interactive confidence & WPM charts
+- 🎯 **Filler Detection** - Highlighted "um", "uh", "like", "you know" in transcript
+- 🎖️ **Priority Actions** - Top 3 most critical improvements
+- 💡 **15+ Recommendations** - With specific action steps
+- 📈 **Detailed Metrics** - Sentence structure, power/weak words, passive voice
+- 🔍 **Filler Breakdown** - See which filler words you use most
+- ⚡ **Fast Analysis** - Complete results in ~30 seconds
+- 🐳 **Docker Ready** - One command deployment
 
 ## 📁 Project Structure
 
 ```
 showcAIse/
-├── backend/          # FastAPI server
-│   ├── main.py       # API endpoints
-│   ├── analyzer.py   # Speech analysis logic
+├── backend/
+│   ├── main.py              # FastAPI server
+│   ├── analyzer.py          # Analysis engine (15+ checks)
 │   └── requirements.txt
-├── frontend/         # React app
+├── frontend/
 │   ├── src/
-│   │   ├── App.tsx
-│   │   ├── Upload.tsx
-│   │   └── Results.tsx
+│   │   ├── App.js          # Main component
+│   │   ├── Upload.js       # File upload UI
+│   │   ├── Results.js      # Visualization dashboard
+│   │   └── index.css
 │   └── package.json
-└── README.md
-```
-
-## 🔧 Configuration
-
-### Backend API Key Setup
-
-**Method 1: Environment Variable (Quick Test)**
-```bash
-# Mac/Linux
-export TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
-
-# Windows (PowerShell)
-$env:TOGETHER_API_KEY="tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4"
-
-# Windows (CMD)
-set TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
-```
-
-**Method 2: .env File (Recommended for Team)**
-```bash
-# 1. Go to backend directory
-cd backend
-
-# 2. Copy the template
-cp .env.example .env
-
-# 3. Edit backend/.env and add the API key from Discord:
-TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
-PORT=8000
-```
-
-**Note for Team:**
-- ✅ `.env` is gitignored - safe to add API key locally
-- ✅ Share the key via Discord, not GitHub
-- ✅ Each teammate creates their own `.env` file
-- ✅ `.env.example` shows the format (no real key)
-
-### Frontend Configuration (Optional)
-```bash
-# Create frontend/.env.local if needed
-REACT_APP_API_URL=http://localhost:8000
+├── docker-compose.yml       # Multi-container orchestration
+├── Dockerfile.backend
+├── Dockerfile.frontend
+└── .dockerignore
 ```
 
 ## 🐛 Troubleshooting
 
-**"FFmpeg not found"**
+**Docker Issues:**
+
 ```bash
-# Mac
-brew install ffmpeg
+# Port conflicts
+docker-compose down
+lsof -ti:3000 -ti:8000 | xargs kill -9
 
-# Ubuntu/Debian
-sudo apt install ffmpeg
+# Rebuild containers
+docker-compose up --build
 
-# Windows
-# Download from: https://ffmpeg.org/download.html
+# Clean everything
+docker system prune -a
 ```
 
-**"Port already in use"**
+**Manual Setup Issues:**
+
+**FFmpeg missing:**
 ```bash
-# Backend: Change PORT in backend/main.py
-# Frontend: Run with PORT=3001 npm start
+# macOS: brew install ffmpeg
+# Ubuntu: sudo apt-get install ffmpeg
+# Windows: Download from ffmpeg.org
 ```
 
-**"Module not found" errors**
+**API errors:**
+- Verify your Together AI API key is correct
+- Check .env file is in backend/ directory
+- Ensure no extra spaces/newlines in key
+
+**Module errors:**
 ```bash
-# Backend
-cd backend && pip install -r requirements.txt
-
-# Frontend
-cd frontend && npm install
+# Backend: pip install -r requirements.txt
+# Frontend: rm -rf node_modules && npm install
 ```
-
-## 🎬 Development Tips
-
-**Use short test videos:**
-- Start with 30-60 second clips
-- Keep under 5 minutes for testing
-- MP4 format works best
-
-**Without API key:**
-- System works with mock data
-- Great for UI/UX development
-- Add real API key when ready
-
-**Team workflow:**
-- One person: Backend features
-- One person: Frontend UI/UX
-- One person: Analysis algorithms
-- One person: Testing & documentation
 
 ## 📊 API Reference
 
-### Upload Video
-```bash
-POST /api/upload
-Content-Type: multipart/form-data
+### POST /api/upload
+Upload video for analysis.
 
-FormData: video=@presentation.mp4
+**Request:**
+- `file`: Video file (multipart/form-data)
 
-Response:
+**Response:**
+```json
 {
-  "session_id": "abc123",
-  "status": "completed",
-  "results": {
-    "transcript": "Hello everyone...",
-    "word_count": 245,
-    "filler_count": 8,
-    "wpm": 147,
-    "recommendations": [...]
+  "session_id": "uuid",
+  "transcript": "Full transcription...",
+  "word_count": 150,
+  "sentence_count": 10,
+  "avg_sentence_length": 15.0,
+  "filler_count": 12,
+  "wpm": 125,
+  "duration": 72.0,
+  "confidence": 0.92,
+  "recommendations": [
+    {
+      "icon": "🎯",
+      "title": "Reduce Filler Words",
+      "description": "...",
+      "severity": "high",
+      "action": "Specific steps..."
+    }
+  ],
+  "priority_actions": [
+    {"title": "...", "action": "..."}
+  ],
+  "filler_positions": [[0, 10, "um"], ...],
+  "filler_breakdown": {"um": 5, "uh": 3, "like": 4},
+  "timeline": [
+    {
+      "segment": 1,
+      "confidence": 0.95,
+      "wpm": 130,
+      "filler_count": 2
+    }
+  ],
+  "metrics": {
+    "avg_sentence_length": 15.0,
+    "questions": 3,
+    "power_words": 8,
+    "weak_words": 5,
+    "passive_voice": 2
   }
 }
 ```
 
-### Get Session Results
-```bash
-GET /api/session/{session_id}
+### GET /api/session/{session_id}
+Retrieve previous analysis results.
 
-Response: Same as upload response
-```
+## 🔧 Tech Stack
 
-## 🚀 Deployment (Optional)
+- **Backend:** FastAPI 0.121.3, Python 3.12, Together AI Whisper large-v3, FFmpeg
+- **Frontend:** React 18.2, Recharts 3.4.1, Axios 1.6.2
+- **Deployment:** Docker & Docker Compose
+- **Storage:** In-memory sessions (hackathon speed)
 
-**Backend:**
-- Railway.app (recommended)
-- Render.com
-- Fly.io
+## 📈 Analysis Features
 
-**Frontend:**
-- Vercel (recommended)
-- Netlify
-- GitHub Pages
+- Speech transcription with timestamps
+- Filler word detection (um, uh, like, you know, so, actually, basically, literally)
+- Speaking pace (WPM) tracking
+- Sentence structure analysis
+- Weak vs power word detection
+- Passive voice identification
+- Repetitive sentence pattern detection
+- Question usage analysis
+- Timeline segmentation (10 segments)
+- Priority action extraction
 
-## 🤝 Contributing
+## 🤝 Team Setup
 
-This is a hackathon project! Feel free to:
-- Add new analysis features
-- Improve UI/UX
-- Fix bugs
-- Add tests
-
-## 📝 License
-
-MIT License - Use freely for your projects!
+See [TEAM_SETUP.md](./TEAM_SETUP.md) for complete onboarding guide with Docker instructions.
 
 ## 🎯 Hackathon Strategy
 
-**Hour 1-2:** Get basic system working (this is done!)
-**Hour 3-4:** Polish UI, add graphs/charts
-**Hour 5-6:** Add one advanced feature (body language OR avatar)
-**Hour 7-8:** Testing, bug fixes, sample videos
-**Hour 9-10:** Demo prep, presentation slides
+**Hour 1-2:** Basic system ✅ (DONE!)
+**Hour 3-4:** UI polish & visualizations ✅ (DONE!)
+**Hour 5-6:** Advanced recommendations ✅ (DONE!)
+**Hour 7-8:** Docker deployment ✅ (DONE!)
+**Hour 9-10:** Testing, demo prep, presentation
 
-**Demo Tips:**
-- Use a good sample video showing clear improvements
-- Practice your pitch (2-3 minutes)
-- Show before/after metrics
-- Emphasize AI/ML components
+**Next Phase:** Avatar generation or body language analysis
 
-Good luck! 🎤✨
+---
+
+Built in 10 hours for the hackathon 🚀
