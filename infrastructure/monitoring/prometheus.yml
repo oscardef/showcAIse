@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # API Gateway
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8000']
+
+  # Video Processing
+  - job_name: 'video-processing'
+    static_configs:
+      - targets: ['video-processing:8000']
+
+  # Speech Analysis
+  - job_name: 'speech-analysis'
+    static_configs:
+      - targets: ['speech-analysis:8000']
+
+  # Computer Vision
+  - job_name: 'computer-vision'
+    static_configs:
+      - targets: ['computer-vision:8000']
+
+  # Avatar Generation
+  - job_name: 'avatar-generation'
+    static_configs:
+      - targets: ['avatar-generation:8000']
+
+  # Analytics
+  - job_name: 'analytics'
+    static_configs:
+      - targets: ['analytics:8000']
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  # MinIO
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']

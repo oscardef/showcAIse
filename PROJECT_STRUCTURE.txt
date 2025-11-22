@@ -1,0 +1,72 @@
+.
+├── docker-compose.dev.yml
+├── docker-compose.yml
+├── docs
+│   ├── API.md
+│   ├── ARCHITECTURE.md
+│   ├── DEVELOPMENT.md
+│   └── SETUP.md
+├── frontend
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── public
+│   │   ├── index.html
+│   │   └── manifest.json
+│   ├── README.md
+│   ├── src
+│   │   ├── App.tsx
+│   │   ├── components
+│   │   ├── index.css
+│   │   ├── index.tsx
+│   │   ├── pages
+│   │   └── services
+│   ├── tailwind.config.js
+│   └── tsconfig.json
+├── infrastructure
+│   ├── monitoring
+│   │   └── prometheus.yml
+│   ├── nginx
+│   │   └── nginx.conf
+│   └── postgres
+│       └── init.sql
+├── LICENSE
+├── PROJECT_STRUCTURE.txt
+├── README.md
+├── scripts
+│   ├── seed-db.sh
+│   └── setup.sh
+└── services
+    ├── analytics
+    │   ├── app
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    ├── api-gateway
+    │   ├── app
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    ├── avatar-generation
+    │   ├── app
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    ├── computer-vision
+    │   ├── app
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    ├── shared
+    │   ├── auth.py
+    │   ├── config.py
+    │   ├── database.py
+    │   ├── messaging.py
+    │   ├── README.md
+    │   └── storage.py
+    ├── speech-analysis
+    │   ├── app
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    └── video-processing
+        ├── app
+        ├── Dockerfile
+        └── requirements.txt
+
+26 directories, 43 files
