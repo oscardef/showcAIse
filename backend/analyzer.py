@@ -368,10 +368,16 @@ def detect_key_segments(transcript: str, words: List[str], duration_minutes: flo
             segment_text = '. '.join(current_segment_sentences) + '.'
             segment_words = segment_text.split()
             
-            # Calculate timestamp
-            start_second = int((cumulative_words / len(words)) * duration_minutes * 60) if len(words) > 0 else 0
+            # Calculate timestamp more accurately using average speaking pace
+            # Assume 150 WPM average (0.4 seconds per word)
+            start_second = int((cumulative_words * 0.4))
             cumulative_words += current_word_count
-            end_second = int((cumulative_words / len(words)) * duration_minutes * 60) if len(words) > 0 else 0
+            end_second = int((cumulative_words * 0.4))
+            
+            # Add small buffer to make timestamps more forgiving
+            buffer = 1  # 1 second buffer
+            start_second = max(0, start_second - buffer)
+            end_second = min(int(duration_minutes * 60), end_second + buffer)
             
             segments.append({
                 'text': segment_text,

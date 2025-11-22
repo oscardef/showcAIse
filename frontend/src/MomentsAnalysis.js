@@ -7,18 +7,39 @@ const MomentsAnalysis = ({ moments, videoUrl }) => {
   useEffect(() => {
     if (playingClip && videoRef.current) {
       const video = videoRef.current;
+      
+      // Set time range and start playback
       video.currentTime = playingClip.start_time;
-      video.play();
+      
+      const handleLoadedMetadata = () => {
+        video.currentTime = playingClip.start_time;
+        video.play().catch(err => console.log('Play failed:', err));
+      };
 
       const handleTimeUpdate = () => {
+        // Stop playback when segment ends
         if (video.currentTime >= playingClip.end_time) {
           video.pause();
-          setPlayingClip(null);
+          video.currentTime = playingClip.start_time; // Reset to start of segment
+        }
+        // Also handle if user seeks outside segment
+        if (video.currentTime < playingClip.start_time) {
+          video.currentTime = playingClip.start_time;
         }
       };
 
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('timeupdate', handleTimeUpdate);
-      return () => video.removeEventListener('timeupdate', handleTimeUpdate);
+      
+      // Start playing immediately if metadata already loaded
+      if (video.readyState >= 2) {
+        handleLoadedMetadata();
+      }
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        video.removeEventListener('timeupdate', handleTimeUpdate);
+      };
     }
   }, [playingClip]);
 
@@ -48,9 +69,19 @@ const MomentsAnalysis = ({ moments, videoUrl }) => {
                 setPlayingClip(null);
               }}>✕</button>
             </div>
-            <video ref={videoRef} controls src={videoUrl} />
+            <div className="video-container-segment">
+              <video 
+                ref={videoRef} 
+                controls 
+                src={videoUrl}
+                controlsList="nodownload"
+              />
+              <div className="segment-indicator">
+                Segment: {formatTime(playingClip.start_time)} - {formatTime(playingClip.end_time)} 
+                <span className="segment-duration">({playingClip.duration}s)</span>
+              </div>
+            </div>
             <div className="clip-info">
-              <p className="clip-time">{formatTime(playingClip.start_time)} - {formatTime(playingClip.end_time)}</p>
               <p className="clip-text">"{playingClip.text}"</p>
             </div>
           </div>
