@@ -387,69 +387,93 @@ def detect_key_segments(transcript: str, words: List[str], duration_minutes: flo
     return segments
 
 
-def calculate_confidence_with_explanation(segment_text: str, segment_wpm: int, segment_words: List[str]) -> Tuple[int, str]:
+def calculate_confidence_with_explanation(segment_text: str, segment_wpm: int, segment_words: List[str], sentiment_score: float = None) -> Tuple[int, str, List[str]]:
     """
-    Calculate confidence score with explanation of the algorithm.
+    Calculate confidence score with explanation. Returns (score, explanation, issues_list)
     
     Confidence Score Breakdown:
-    - Base: 70 points
-    - Pacing (±20): Optimal WPM = 130-160 (conversational)
-    - Filler Words (±30): No fillers = bonus, >10% = major penalty  
-    - Sentence Length (±10): 15-20 words average is ideal
+    - Base: 50 points (neutral)
+    - Pacing (±25): Optimal WPM = 130-160
+    - Filler Words (±30): Heavily penalize poor filler control
+    - Sentiment (±20): Negative tone = penalty
+    - Clarity (±15): Hedge words and weak language
     
     Total range: 0-100
     """
-    confidence = 70
+    confidence = 50
     explanations = []
+    issues = []
     
-    # 1. Pacing Analysis (±20 points)
+    # 1. Pacing Analysis (±25 points)
     if 130 <= segment_wpm <= 160:
-        confidence += 20
-        explanations.append(f"✓ Perfect pace ({segment_wpm} WPM)")
+        confidence += 25
+        explanations.append(f"Good pacing ({segment_wpm} WPM)")
     elif 110 <= segment_wpm < 130 or 160 < segment_wpm <= 180:
         confidence += 10
-        explanations.append(f"~ Good pace ({segment_wpm} WPM)")
+        explanations.append(f"Acceptable pace ({segment_wpm} WPM)")
+        issues.append("Pace could be more optimal")
     elif segment_wpm > 200:
         confidence -= 20
-        explanations.append(f"✗ Too fast ({segment_wpm} WPM, aim for 130-160)")
+        explanations.append(f"Speaking too fast ({segment_wpm} WPM)")
+        issues.append(f"Too fast: {segment_wpm} WPM (aim for 130-160)")
     elif segment_wpm < 100:
         confidence -= 20
-        explanations.append(f"✗ Too slow ({segment_wpm} WPM, aim for 130-160)")
-    else:
-        explanations.append(f"~ Pace: {segment_wpm} WPM")
+        explanations.append(f"Speaking too slow ({segment_wpm} WPM)")
+        issues.append(f"Too slow: {segment_wpm} WPM (aim for 130-160)")
     
-    # 2. Filler Words Analysis (±30 points)
+    # 2. Filler Words Analysis (±30 points) - STRICTER
     filler_positions = find_filler_positions(segment_text)
     filler_count = len(filler_positions)
     filler_ratio = filler_count / len(segment_words) if segment_words else 0
     
     if filler_count == 0:
-        confidence += 10
-        explanations.append("✓ No filler words")
-    elif filler_ratio > 0.1:
-        confidence -= 30
-        explanations.append(f"✗ Too many fillers ({filler_count}, {int(filler_ratio*100)}% of words)")
-    elif filler_ratio > 0.05:
-        confidence -= 15
-        explanations.append(f"~ Some fillers ({filler_count}, {int(filler_ratio*100)}% of words)")
+        confidence += 15
+        explanations.append("No filler words")
+    elif filler_ratio > 0.15:  # More than 15%
+        confidence -= 35
+        explanations.append(f"Excessive fillers ({filler_count} fillers, {int(filler_ratio*100)}%)")
+        issues.append(f"Way too many filler words: {filler_count} ({int(filler_ratio*100)}% of words)")
+    elif filler_ratio > 0.08:  # More than 8%
+        confidence -= 25
+        explanations.append(f"Too many fillers ({filler_count})")
+        issues.append(f"High filler word count: {filler_count} ({int(filler_ratio*100)}%)")
+    elif filler_ratio > 0.04:  # More than 4%
+        confidence -= 10
+        explanations.append(f"Some fillers present ({filler_count})")
+        issues.append(f"Noticeable filler words: {filler_count}")
     else:
-        explanations.append(f"✓ Minimal fillers ({filler_count})")
+        confidence += 10
+        explanations.append(f"Minimal fillers ({filler_count})")
     
-    # 3. Sentence Structure (±10 points)
-    sentences = [s.strip() for s in re.split(r'[.!?]+', segment_text) if s.strip()]
-    if sentences:
-        avg_sentence_len = len(segment_words) / len(sentences)
-        if 15 <= avg_sentence_len <= 20:
-            confidence += 10
-            explanations.append("✓ Clear sentence structure")
-        elif avg_sentence_len > 25:
+    # 3. Sentiment Analysis (±20 points)
+    if sentiment_score is not None:
+        if sentiment_score >= 0.3:  # Positive
+            confidence += 20
+            explanations.append("Positive, confident tone")
+        elif sentiment_score <= -0.3:  # Negative
+            confidence -= 25
+            explanations.append("Negative or uncertain tone")
+            issues.append("Language sounds uncertain or negative")
+        elif sentiment_score <= -0.1:  # Slightly negative
             confidence -= 10
-            explanations.append(f"~ Long sentences (avg {int(avg_sentence_len)} words)")
+            explanations.append("Somewhat uncertain tone")
+            issues.append("Tone could be more confident")
+    
+    # 4. Clarity - Check for hedge words and weak language
+    hedge_words = ['kind of', 'sort of', 'i guess', 'i don\'t know', 'maybe', 'probably', 'kinda', 'sorta']
+    hedge_count = sum(segment_text.lower().count(hw) for hw in hedge_words)
+    if hedge_count > 2:
+        confidence -= 15
+        explanations.append(f"Weak/uncertain language ({hedge_count} instances)")
+        issues.append(f"Too much uncertain language: '{', '.join([h for h in hedge_words if h in segment_text.lower()][:3])}'")
+    elif hedge_count > 0:
+        confidence -= 5
+        issues.append("Some hedge words detected")
     
     confidence = max(0, min(100, confidence))
     explanation = " | ".join(explanations)
     
-    return confidence, explanation
+    return confidence, explanation, issues
 
 
 def generate_timeline_data(transcript: str, duration_minutes: float) -> List[Dict]:
@@ -474,14 +498,23 @@ def generate_timeline_data(transcript: str, duration_minutes: float) -> List[Dic
         }]
     
     timeline = []
+    sentiment_analyzer = get_sentiment_analyzer()
+    
     for i, seg in enumerate(segments):
         segment_words = seg['text'].split()
         segment_duration_min = seg['duration'] / 60
         segment_wpm = int(len(segment_words) / segment_duration_min) if segment_duration_min > 0 else 150
         
+        # Get sentiment for this segment
+        try:
+            sentiment_result = sentiment_analyzer(seg['text'][:512])[0]
+            sentiment_score = sentiment_result['score'] if sentiment_result['label'] == 'POSITIVE' else -sentiment_result['score']
+        except:
+            sentiment_score = None
+        
         # Calculate confidence with explanation
-        confidence, explanation = calculate_confidence_with_explanation(
-            seg['text'], segment_wpm, segment_words
+        confidence, explanation, issues = calculate_confidence_with_explanation(
+            seg['text'], segment_wpm, segment_words, sentiment_score
         )
         
         # Count fillers
@@ -493,11 +526,14 @@ def generate_timeline_data(transcript: str, duration_minutes: float) -> List[Dic
             "wpm": segment_wpm,
             "confidence": confidence,
             "confidence_explanation": explanation,
+            "issues": issues,
+            "sentiment_score": sentiment_score,
             "filler_count": filler_count,
             "start_time": seg['start_time'],
             "end_time": seg['end_time'],
             "duration": seg['duration'],
-            "text_preview": seg['text'][:100] + '...' if len(seg['text']) > 100 else seg['text']
+            "text_preview": seg['text'][:100] + '...' if len(seg['text']) > 100 else seg['text'],
+            "full_text": seg['text']
         })
     
     return timeline
@@ -506,51 +542,110 @@ def generate_timeline_data(transcript: str, duration_minutes: float) -> List[Dic
 def identify_key_clips(timeline: List[Dict], transcript: str) -> Dict:
     """
     Identify notable clips (both excellent and poor moments) for focused review.
-    Like chess.com showing key moves, we show key speaking moments.
+    Uses strict thresholds: >70 = strong, <50 = needs work
     """
     if not timeline:
-        return {"good_clips": [], "bad_clips": [], "explanation": ""}
+        return {"strong_moments": [], "weak_moments": [], "summary": "No segments to analyze"}
     
     # Sort by confidence to find extremes
     sorted_segments = sorted(timeline, key=lambda x: x['confidence'])
     
-    # Good clips: top 3 highest confidence segments
-    good_clips = []
-    for seg in sorted_segments[-3:][::-1]:  # Reverse to show best first
-        if seg['confidence'] >= 75:  # Only include truly good segments
-            good_clips.append({
+    # Strong moments: confidence >= 70
+    strong_moments = []
+    for seg in sorted(timeline, key=lambda x: x['confidence'], reverse=True):
+        if seg['confidence'] >= 70:
+            # Categorize what made it strong
+            categories = []
+            if seg.get('sentiment_score', 0) > 0.2:
+                categories.append("Confident language")
+            if seg['filler_count'] <= 1:
+                categories.append("Clean delivery")
+            if 130 <= seg['wpm'] <= 160:
+                categories.append("Perfect pacing")
+            
+            strong_moments.append({
                 "segment_num": seg['segment'],
                 "confidence": seg['confidence'],
                 "start_time": seg['start_time'],
                 "end_time": seg['end_time'],
                 "duration": seg['duration'],
-                "text_preview": seg['text_preview'],
-                "why_good": seg['confidence_explanation'],
-                "title": f"Strong Moment #{seg['segment']}"
+                "text": seg.get('full_text', seg['text_preview']),
+                "why_strong": seg['confidence_explanation'],
+                "categories": categories if categories else ["Good overall delivery"],
+                "metrics": {
+                    "wpm": seg['wpm'],
+                    "fillers": seg['filler_count'],
+                    "sentiment": seg.get('sentiment_score')
+                }
             })
     
-    # Bad clips: bottom 3 lowest confidence segments  
-    bad_clips = []
-    for seg in sorted_segments[:3]:
-        if seg['confidence'] < 60:  # Only include problematic segments
-            bad_clips.append({
+    # Weak moments: confidence < 50
+    weak_moments = []
+    for seg in sorted_segments:
+        if seg['confidence'] < 50:
+            # Categorize issues
+            issues_detail = seg.get('issues', [])
+            categories = []
+            
+            if seg['filler_count'] > 3:
+                categories.append("Excessive filler words")
+            if seg.get('sentiment_score', 0) < -0.1:
+                categories.append("Uncertain tone")
+            if seg['wpm'] < 100 or seg['wpm'] > 180:
+                categories.append("Poor pacing")
+            if 'hedge' in seg['confidence_explanation'].lower() or 'uncertain' in seg['confidence_explanation'].lower():
+                categories.append("Weak language")
+            
+            weak_moments.append({
                 "segment_num": seg['segment'],
                 "confidence": seg['confidence'],
                 "start_time": seg['start_time'],
                 "end_time": seg['end_time'],
                 "duration": seg['duration'],
-                "text_preview": seg['text_preview'],
-                "why_bad": seg['confidence_explanation'],
-                "title": f"Needs Work - Segment #{seg['segment']}"
+                "text": seg.get('full_text', seg['text_preview']),
+                "why_weak": seg['confidence_explanation'],
+                "issues": issues_detail,
+                "categories": categories if categories else ["Needs improvement"],
+                "metrics": {
+                    "wpm": seg['wpm'],
+                    "fillers": seg['filler_count'],
+                    "sentiment": seg.get('sentiment_score')
+                },
+                "suggestions": generate_improvement_suggestions(seg)
             })
     
-    explanation = f"Found {len(good_clips)} strong moments and {len(bad_clips)} moments that need improvement."
+    # Limit to top 5 of each
+    strong_moments = strong_moments[:5]
+    weak_moments = weak_moments[:5]
+    
+    summary = f"Found {len(strong_moments)} strong moments and {len(weak_moments)} areas to improve."
     
     return {
-        "good_clips": good_clips,
-        "bad_clips": bad_clips,
-        "explanation": explanation
+        "strong_moments": strong_moments,
+        "weak_moments": weak_moments,
+        "summary": summary
     }
+
+
+def generate_improvement_suggestions(segment: Dict) -> List[str]:
+    """Generate specific improvement suggestions for a weak segment"""
+    suggestions = []
+    
+    if segment['filler_count'] > 3:
+        suggestions.append(f"Reduce filler words - found {segment['filler_count']} instances. Pause instead of saying 'um' or 'like'.")
+    
+    if segment['wpm'] < 100:
+        suggestions.append(f"Speed up your delivery - {segment['wpm']} WPM is too slow. Aim for 130-160 WPM.")
+    elif segment['wpm'] > 180:
+        suggestions.append(f"Slow down - {segment['wpm']} WPM is too fast. Aim for 130-160 WPM for better clarity.")
+    
+    if segment.get('sentiment_score', 0) < -0.2:
+        suggestions.append("Use more confident, positive language. Avoid words like 'kind of', 'I guess', 'maybe'.")
+    
+    if not suggestions:
+        suggestions.append("Focus on clear, confident delivery with minimal filler words.")
+    
+    return suggestions
 
 
 def analyze_speech(transcript: str) -> Dict:

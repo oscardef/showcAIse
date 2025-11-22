@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Upload from './Upload';
-import Results from './Results';
+import Results from './ResultsClean';
 
 function App() {
   const [view, setView] = useState('upload'); // 'upload' or 'results'
@@ -17,8 +17,7 @@ function App() {
   };
 
   return (
-    <div className="container">
-      <h1>🎤 showcAIse</h1>
+    <div className="app-container">
       {view === 'upload' ? (
         <Upload onComplete={handleUploadComplete} />
       ) : (

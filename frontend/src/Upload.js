@@ -64,8 +64,11 @@ function Upload({ onComplete }) {
   };
 
   return (
-    <div className="card">
-      <h2>Upload Your Presentation Video</h2>
+    <div className="upload-container-clean">
+      <div className="upload-header-clean">
+        <h1>showcAIse</h1>
+        <p className="upload-subtitle">Analyze your presentation and get instant feedback</p>
+      </div>
       
       <div
         className={`upload-zone ${dragging ? 'dragging' : ''}`}
@@ -121,9 +124,9 @@ function Upload({ onComplete }) {
         </button>
       </div>
 
-      <div style={{ marginTop: '32px', padding: '20px', background: '#f8f9ff', borderRadius: '8px' }}>
-        <h3 style={{ marginBottom: '12px', color: '#333' }}>💡 Tips for Best Results:</h3>
-        <ul style={{ color: '#666', lineHeight: '1.8', paddingLeft: '24px' }}>
+      <div className="upload-tips">
+        <h3>Tips for Best Results</h3>
+        <ul>
           <li>Use good lighting and clear audio</li>
           <li>Keep videos between 30 seconds - 5 minutes</li>
           <li>Speak clearly and look at the camera</li>
