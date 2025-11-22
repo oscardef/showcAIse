@@ -18,10 +18,10 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Optional: Add OpenAI API key for real transcription
-export OPENAI_API_KEY=your_key_here
+# Add Together AI API key for real transcription
+export TOGETHER_API_KEY=tgp_v1_jWkCnxJNapoEtWiHYDWIoGDQn4VTUuiVZyr29ToaWi4
 
-# Start backend (runs on port 5000)
+# Start backend (runs on port 8000)
 python main.py
 
 # 2. Frontend Setup (new terminal)
@@ -72,13 +72,13 @@ showcAIse/
 
 ### Backend (.env or export)
 ```bash
-OPENAI_API_KEY=sk-...        # Optional: For Whisper transcription
-PORT=5000                     # Default: 5000
+TOGETHER_API_KEY=tgp_v1_...  # Required: For Whisper transcription
+PORT=8000                     # Default: 8000
 ```
 
 ### Frontend (.env.local)
 ```bash
-REACT_APP_API_URL=http://localhost:5000
+REACT_APP_API_URL=http://localhost:8000
 ```
 
 ## 🐛 Troubleshooting

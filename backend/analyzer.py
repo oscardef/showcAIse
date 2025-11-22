@@ -3,6 +3,7 @@ Speech analysis module - Extract audio, transcribe, and analyze patterns
 """
 import os
 import re
+import requests
 from typing import Dict, List
 import ffmpeg
 
@@ -23,13 +24,13 @@ def extract_audio(video_path: str, audio_path: str) -> None:
 
 def transcribe_audio(audio_path: str) -> str:
     """
-    Transcribe audio using OpenAI Whisper API
+    Transcribe audio using Together AI's Whisper API
     Falls back to mock data if no API key
     """
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("TOGETHER_API_KEY")
     
     if not api_key:
-        print("⚠️  No OPENAI_API_KEY found, using mock transcript")
+        print("⚠️  No TOGETHER_API_KEY found, using mock transcript")
         return """Hello everyone, um, today I want to talk about, like, 
         our quarterly results. So, um, we achieved a fifteen percent growth, 
         which is, you know, pretty significant. Uh, the team worked really hard 
@@ -37,18 +38,32 @@ def transcribe_audio(audio_path: str) -> str:
         we plan to, uh, expand into new territories and, you know, scale our operations."""
     
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+        print("🎤 Transcribing with Together AI Whisper...")
         
+        # Together AI uses OpenAI-compatible API format
         with open(audio_path, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text"
+            response = requests.post(
+                "https://api.together.xyz/v1/audio/transcriptions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                },
+                files={
+                    "file": audio_file,
+                },
+                data={
+                    "model": "openai/whisper-large-v3",
+                }
             )
-        return transcript
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result.get("text", "")
+        else:
+            print(f"⚠️  Together AI error: {response.status_code} - {response.text}")
+            raise Exception(f"API error: {response.status_code}")
+            
     except Exception as e:
-        print(f"⚠️  Whisper API error: {e}, using mock transcript")
+        print(f"⚠️  Transcription error: {e}, using mock transcript")
         return """Hello everyone, um, today I want to talk about our project. 
         The results have been, like, really good and we're excited about the future."""
 

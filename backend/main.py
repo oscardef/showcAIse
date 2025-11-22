@@ -14,7 +14,7 @@ app = FastAPI(title="showcAIse API")
 # CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -102,6 +102,6 @@ async def get_session(session_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", 8000))
     print(f"🚀 Starting showcAIse API on http://localhost:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
