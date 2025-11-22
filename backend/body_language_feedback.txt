@@ -1,0 +1,7 @@
+{
+  "overall_score": 0,
+  "tips": [
+    "API error: Error code: 404 - {\"message\": \"Unable to access model qwen2-vl-7b-instruct. Please visit https://api.together.ai/models to view the list of supported models.\", \"type_\": \"invalid_request_error\", \"code\": \"model_not_available\"}"
+  ],
+  "issues": []
+}

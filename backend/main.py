@@ -8,7 +8,7 @@ from typing import Dict
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from analyzer import extract_audio, transcribe_audio, analyze_speech, analyze_video
+from analyzer import * 
 
 # Load environment variables from .env file
 load_dotenv()
@@ -75,9 +75,11 @@ async def upload_video(video: UploadFile):
         print(f"[{session_id}] Analyzing speech patterns...")
         analysis = analyze_speech(transcript)
         
+        
         # Analyze video and save landmarks.json
         print(f"[{session_id}] Analyzing video for landmarks...")
         landmarks = analyze_video(str(video_path))
+        #save_feedback_to_file(landmarks.get("body_language", {}), f"body_language_feedback.txt")
         # Save landmarks to file
         import json
         with open(landmarks_path, "w") as lf:
@@ -87,6 +89,40 @@ async def upload_video(video: UploadFile):
         with open(landmarks_path, "r") as lf:
             landmarks_json = json.load(lf)
         
+        summary = []
+        for i, frame in enumerate(landmarks_json):
+            if i % 5 != 0: continue  # downsample to 5–6 fps is enough
+            p = frame['pose_landmarks']
+            f = frame['face_landmarks']
+
+        # Example metrics we care about
+        left_shoulder  = p[11]
+        right_shoulder = p[12]
+        left_hip       = p[23]
+        right_hip      = p[24]
+        nose           = p[0]
+        mid_hip = {'x': (left_hip['x']+right_hip['x'])/2,
+                    'y': (left_hip['y']+right_hip['y'])/2,
+                    'z': (left_hip['z']+right_hip['z'])/2}
+
+        summary.append({
+            "frame": i,
+            "timestamp_sec": i / 30.0,
+            "shoulder_width": dist(left_shoulder, right_shoulder),
+            "hip_width": dist(left_hip, right_hip),
+            "body_tilt_deg": angle_at(mid_hip, left_shoulder, right_shoulder),
+            "leaning_forward": nose['z'],  # negative = closer to camera
+            "left_hand_raise": p[15]['y'],  # lower y = higher on screen
+            "right_hand_raise": p[16]['y'],
+            "openness_score": dist(left_shoulder, left_hip) + dist(right_shoulder, right_hip),  # rough proxy
+            "face_visibility": f[0]['visibility'] if f else 0,
+        })
+
+        text_for_llm = json.dumps(summary, indent=2)
+
+        with open('text_for_llm', "w", encoding="utf-8") as f:
+            json.dump(text_for_llm, f, ensure_ascii=False, indent=2)
+            
         # Store results
         session_data = {
             "session_id": session_id,

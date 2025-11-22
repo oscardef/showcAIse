@@ -43,7 +43,7 @@ def get_body_language_feedback(landmarks_data: dict) -> dict:
 
     try:
         response = together.Complete.create(
-            model="llama-3-11b-vision-instruct",  # or "qwen2-vl-7b-instruct"
+            model="llama-2-70b-chat",
             prompt=prompt,
             max_tokens=600,
             temperature=0.6,
@@ -448,74 +448,99 @@ mp_pose = mp.solutions.pose
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils  # Optional: for visualizing landmarks if debugging
 
-def extract_landmarks(video_path: str, frame_interval: int = 10) -> Dict[str, any]:
+def extract_landmarks(video_path: str, frame_interval: int = 5) -> dict:
     """
-    Extract pose and face landmarks from video.
-    Returns: {'frames': [{'timestamp': float, 'pose_landmarks': List[Dict], 'face_landmarks': List[Dict]}], 'fps': float}
-    Each landmark: {'x': float, 'y': float, 'z': float, 'visibility': float} (normalized 0-1)
+    Extract pose and face landmarks from video using MediaPipe.
+    Samples every `frame_interval` frames.
+    Returns a dict: {"frames": [{"timestamp": ..., "landmarks": {...}}, ...]}
     """
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_count = 0
-    landmarks_data = {'frames': [], 'fps': fps}
-    
-    with mp_pose.Pose(static_image_mode=False, model_complexity=1, enable_segmentation=False, min_detection_confidence=0.5) as pose, \
-         mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.5) as face_mesh:
-        
+    frames = []
+    frame_idx = 0
+
+    with mp_pose.Pose(static_image_mode=False) as pose, mp_face_mesh.FaceMesh(static_image_mode=False) as face_mesh:
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
-            
-            if frame_count % frame_interval == 0:
-                # Flip frame horizontally for selfie-view (optional)
-                frame_rgb = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
-                
-                # Pose detection
-                pose_results = pose.process(frame_rgb)
-                pose_landmarks = []
+            if frame_idx % frame_interval == 0:
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                pose_results = pose.process(rgb)
+                face_results = face_mesh.process(rgb)
+                landmarks = {}
                 if pose_results.pose_landmarks:
-                    for idx, landmark in enumerate(pose_results.pose_landmarks.landmark):
-                        pose_landmarks.append({
-                            'index': idx,
-                            'x': landmark.x,
-                            'y': landmark.y,
-                            'z': landmark.z,
-                            'visibility': landmark.visibility
-                        })
-                
-                # Face detection
-                face_results = face_mesh.process(frame_rgb)
-                face_landmarks = []
+                    landmarks['pose'] = [
+                        {'x': lm.x, 'y': lm.y, 'z': lm.z, 'visibility': lm.visibility}
+                        for lm in pose_results.pose_landmarks.landmark
+                    ]
                 if face_results.multi_face_landmarks:
-                    for idx, landmark in enumerate(face_results.multi_face_landmarks[0].landmark):
-                        face_landmarks.append({
-                            'index': idx,
-                            'x': landmark.x,
-                            'y': landmark.y,
-                            'z': landmark.z
-                        })
-                
-                timestamp = frame_count / fps
-                landmarks_data['frames'].append({
-                    'timestamp': timestamp,
-                    'pose_landmarks': pose_landmarks,
-                    'face_landmarks': face_landmarks
-                })
-            
-            frame_count += 1
-    
-    cap.release()
-    return landmarks_data
+                    landmarks['face'] = [
+                        [{'x': lm.x, 'y': lm.y, 'z': lm.z}
+                         for lm in face_landmarks.landmark]
+                        for face_landmarks in face_results.multi_face_landmarks
+                    ]
+                timestamp = f"{frame_idx / fps:.2f}s"
+                frames.append({"timestamp": timestamp, "landmarks": landmarks})
+            frame_idx += 1
+        cap.release()
+    return {"frames": frames}
+
+def get_body_language_feedback(landmarks_data: dict) -> dict:
+    """
+    Sends sampled landmarks to Together AI for feedback.
+    Returns dict with overall_score, tips, issues.
+    """
+    sampled = landmarks_data.get("frames", [])
+    prompt = (
+        "You are an expert presentation coach. Analyze the following sampled body landmarks from a presentation video. "
+        "For each frame, consider posture, eye contact direction, hand gestures, and confidence signals. "
+        "Give a strict JSON output with these fields only:\n"
+        "overall_score (0-10, integer), tips (list of 3 concise strings), issues (list of strings with timestamps).\n"
+        "Example output:\n"
+        "{\n"
+        "  \"overall_score\": 8,\n"
+        "  \"tips\": [\"Keep your shoulders back\", \"Look at the audience more\", \"Use more open hand gestures\"],\n"
+        "  \"issues\": [\"00:00:05 - Looking away from audience\", \"00:00:12 - Hands in pockets\"]\n"
+        "}\n"
+        "Here are the sampled frames:\n"
+        f"{json.dumps(sampled)}"
+    )
+    try:
+        response = together.Complete.create(
+            model="qwen2-vl-7b-instruct",  # Use a supported model
+            prompt=prompt,
+            max_tokens=600,
+            temperature=0.6,
+            stop=None
+        )
+        text = response['output']['choices'][0]['text']
+        try:
+            start = text.find('{')
+            end = text.rfind('}') + 1
+            json_str = text[start:end]
+            result = json.loads(json_str)
+        except Exception:
+            result = {
+                "overall_score": 0,
+                "tips": ["Could not parse feedback."],
+                "issues": []
+            }
+    except Exception as e:
+        result = {
+            "overall_score": 0,
+            "tips": [f"API error: {str(e)}"],
+            "issues": []
+        }
+    return result
+
 
 def analyze_video(video_path: str) -> dict:
     """
     Analyze video for body landmarks and body language feedback.
     Returns a dict with landmarks and body_language keys.
     """
-    # ...existing landmark extraction code...
-    # For example:
-    # landmarks_data = {"frames": [{"timestamp": "00:00:01", "landmarks": {...}}, ...]}
+
     landmarks_data = extract_landmarks(video_path)  # Replace with your actual function
 
     # Get body language feedback using the Together API
@@ -526,3 +551,29 @@ def analyze_video(video_path: str) -> dict:
         "landmarks": landmarks_data,
         "body_language": body_language_feedback
     }
+
+def save_feedback_to_file(feedback: dict, filename: str = "body_language_feedback.json") -> None:
+    """
+    Save the feedback dictionary to a JSON file for verification.
+    This function is for debugging and should be deleted later.
+    """
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(feedback, f, ensure_ascii=False, indent=2)
+
+
+import math 
+
+def dist(a, b):
+    return math.sqrt((a['x']-b['x'])**2 + (a['y']-b['y'])**2 + (a['z']-b['z'])**2)
+
+def angle_at(joint, p1, p2):
+    # vector joint→p1 and joint→p2
+    v1 = (p1['x']-joint['x'], p1['y']-joint['y'], p1['z']-joint['z'])
+    v2 = (p2['x']-joint['x'], p2['y']-joint['y'], p2['z']-joint['z'])
+    dot = sum(a*b for a,b in zip(v1,v2))
+    mag1 = sum(x*x for x in v1)**0.5
+    mag2 = sum(x*x for x in v2)**0.5
+    if mag1 == 0 or mag2 == 0: return 0
+    return math.degrees(math.acos(max(-1, min(1, dot/(mag1*mag2)))))
+
+
