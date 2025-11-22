@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import MomentsAnalysis from './MomentsAnalysis';
-import AvatarGenerator from './AvatarGenerator';
 
 function Results({ data, onBack }) {
   const [activeTab, setActiveTab] = useState('moments');
@@ -26,7 +25,6 @@ function Results({ data, onBack }) {
 
   const tabs = [
     { id: 'moments', label: 'Key Moments', count: strongCount + weakCount },
-    { id: 'avatar', label: 'Avatar Generator' },
     { id: 'recommendations', label: 'Recommendations', count: results.recommendations?.length || 0 },
     { id: 'transcript', label: 'Transcript' }
   ];
@@ -182,14 +180,6 @@ function Results({ data, onBack }) {
 
       <div className="tabs-content">
         {activeTab === 'moments' && renderMomentsTab()}
-        {activeTab === 'avatar' && (
-          <div className="tab-content-clean">
-            <AvatarGenerator 
-              sessionId={data.session_id}
-              analysis={results}
-            />
-          </div>
-        )}
         {activeTab === 'recommendations' && renderRecommendationsTab()}
         {activeTab === 'transcript' && renderTranscriptTab()}
       </div>
