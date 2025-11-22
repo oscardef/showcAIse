@@ -150,6 +150,8 @@ def analyze_speech(transcript: str) -> Dict:
     # Word count and speaking pace
     words = transcript.split()
     word_count = len(words)
+    sentences = [s.strip() for s in re.split(r'[.!?]+', transcript) if s.strip()]
+    sentence_count = len(sentences)
     
     # Assume 1 word per 0.4 seconds (average speaking pace)
     duration_minutes = (word_count * 0.4) / 60
@@ -161,64 +163,218 @@ def analyze_speech(transcript: str) -> Dict:
     # Calculate overall confidence (average from timeline)
     avg_confidence = sum(t["confidence"] for t in timeline) / len(timeline) if timeline else 70
     
-    # Generate recommendations
+    # Advanced analysis metrics
+    avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
+    questions = len(re.findall(r'\?|question|what|how|why|when|where|who', transcript.lower()))
+    passive_voice_indicators = len(re.findall(r'\b(was|were|been|being)\s+\w+ed\b', transcript.lower()))
+    weak_words = len(re.findall(r'\b(maybe|perhaps|possibly|probably|sort of|kind of|i think|i guess)\b', transcript.lower()))
+    power_words = len(re.findall(r'\b(achieve|success|proven|results|guarantee|discover|powerful|transform)\b', transcript.lower()))
+    repetitive_starts = analyze_sentence_starts(sentences)
+    
+    # Filler word breakdown
+    filler_breakdown = {}
+    for _, _, filler in filler_positions:
+        filler_breakdown[filler] = filler_breakdown.get(filler, 0) + 1
+    top_fillers = sorted(filler_breakdown.items(), key=lambda x: x[1], reverse=True)[:3]
+    
+    # Generate detailed recommendations
     recommendations = []
     
-    if filler_count > word_count * 0.05:  # More than 5% fillers
+    # Filler words analysis
+    if filler_count > word_count * 0.1:  # More than 10%
+        top_filler_text = f"Most common: '{top_fillers[0][0]}' ({top_fillers[0][1]} times)"
         recommendations.append({
             "icon": "🎯",
-            "title": "Reduce filler words",
-            "description": f"You used {filler_count} filler words. Try pausing instead of using 'um' or 'like'",
-            "severity": "high" if filler_count > word_count * 0.1 else "medium"
+            "title": "Reduce filler words immediately",
+            "description": f"You used {filler_count} filler words ({round(filler_count/word_count*100, 1)}% of speech). {top_filler_text}. Practice pausing for 1-2 seconds instead. Record yourself and listen back to build awareness.",
+            "severity": "high",
+            "action": "Practice this: Say your opening sentence. Pause 2 seconds. Continue. Repeat until natural."
+        })
+    elif filler_count > word_count * 0.05:  # 5-10%
+        recommendations.append({
+            "icon": "🎯",
+            "title": "Work on reducing filler words",
+            "description": f"You used {filler_count} filler words ({round(filler_count/word_count*100, 1)}% of speech). Replace fillers with strategic pauses - they make you sound more confident and give your audience time to process.",
+            "severity": "medium",
+            "action": "Try the 'breath pause' technique: Breathe when you want to say 'um'."
         })
     
-    if wpm > 160:
+    # Speaking pace analysis
+    if wpm > 180:
         recommendations.append({
             "icon": "🐢",
-            "title": "Slow down your pace",
-            "description": f"You're speaking at {wpm} WPM. Aim for 130-150 words per minute for clarity",
-            "severity": "medium"
+            "title": "Slow down significantly",
+            "description": f"You're speaking at {wpm} WPM - that's very fast! Your audience will struggle to follow. Aim for 130-150 WPM. Take deliberate pauses between key points.",
+            "severity": "high",
+            "action": "Practice with a metronome at 130 BPM, speaking one word per beat."
         })
-    elif wpm < 120:
+    elif wpm > 160:
+        recommendations.append({
+            "icon": "🐢",
+            "title": "Reduce your speaking pace",
+            "description": f"You're speaking at {wpm} WPM. While energetic, this pace can tire listeners. Slow to 130-150 WPM by pausing after important statements and between sections.",
+            "severity": "medium",
+            "action": "Mark your script with [PAUSE] indicators at key moments."
+        })
+    elif wpm < 110:
         recommendations.append({
             "icon": "⚡",
-            "title": "Pick up the pace",
-            "description": f"You're speaking at {wpm} WPM. Speaking a bit faster will keep your audience engaged",
-            "severity": "low"
+            "title": "Increase your energy and pace",
+            "description": f"At {wpm} WPM, you risk losing audience attention. Speed up to 130-150 WPM. Add more energy and enthusiasm to your delivery.",
+            "severity": "medium",
+            "action": "Practice standing up while presenting - it naturally increases pace and energy."
         })
     
+    # Sentence structure analysis
+    if avg_sentence_length > 25:
+        recommendations.append({
+            "icon": "✂️",
+            "title": "Simplify your sentences",
+            "description": f"Your average sentence is {round(avg_sentence_length, 1)} words - that's too long! Break complex ideas into shorter sentences (15-20 words). Short sentences = clearer communication.",
+            "severity": "medium",
+            "action": "Rewrite your longest 3 sentences into 2 shorter ones each."
+        })
+    elif avg_sentence_length < 10:
+        recommendations.append({
+            "icon": "🔗",
+            "title": "Vary your sentence length",
+            "description": f"Your sentences average {round(avg_sentence_length, 1)} words. While clarity is good, add some variety. Mix short punchy statements with longer explanatory ones.",
+            "severity": "low",
+            "action": "Follow short sentences with 'Here's why:' or 'For example:' to add depth."
+        })
+    
+    # Engagement analysis
+    if questions < 1:
+        recommendations.append({
+            "icon": "❓",
+            "title": "Add audience engagement",
+            "description": "You didn't ask any questions. Questions wake up your audience and make presentations interactive. Use rhetorical questions to emphasize key points.",
+            "severity": "medium",
+            "action": "Add 2-3 questions: 'Have you ever...?', 'What if we could...?', 'Why does this matter?'"
+        })
+    
+    # Weak language analysis
+    if weak_words > word_count * 0.02:  # More than 2%
+        recommendations.append({
+            "icon": "💪",
+            "title": "Use more confident language",
+            "description": f"You used {weak_words} weak or uncertain phrases ('maybe', 'I think', 'sort of'). Replace with definitive statements. Confidence is contagious!",
+            "severity": "medium",
+            "action": "Replace 'I think this will work' → 'This will work' or 'Based on data, this works.'"
+        })
+    
+    # Repetitive sentence starts
+    if repetitive_starts["score"] < 0.7:
+        recommendations.append({
+            "icon": "🔄",
+            "title": "Vary your sentence openings",
+            "description": f"Many sentences start the same way ('{repetitive_starts['common_start']}' used {repetitive_starts['count']} times). Vary your openings to maintain interest.",
+            "severity": "low",
+            "action": "Use transitions: 'Furthermore...', 'Consider this...', 'Here's the key...'"
+        })
+    
+    # Content depth
     if word_count < 100:
         recommendations.append({
             "icon": "📝",
-            "title": "Elaborate more",
-            "description": "Add examples and details to make your presentation richer",
-            "severity": "low"
+            "title": "Add more substance",
+            "description": f"At {word_count} words ({round(duration_minutes, 1)} min), this is very brief. Add examples, data points, or stories to support your message. Aim for at least 2-3 minutes.",
+            "severity": "high",
+            "action": "Add one concrete example or story that illustrates your main point."
         })
     
-    if not any(q in transcript for q in ['?', 'question', 'what', 'how', 'why']):
+    # Passive voice
+    if passive_voice_indicators > sentence_count * 0.3:
         recommendations.append({
-            "icon": "❓",
-            "title": "Engage your audience",
-            "description": "Try asking rhetorical questions to keep listeners involved",
-            "severity": "low"
+            "icon": "⚡",
+            "title": "Use more active voice",
+            "description": f"You're using passive voice frequently. Active voice is more direct and engaging. 'We achieved results' is stronger than 'Results were achieved.'",
+            "severity": "low",
+            "action": "Find sentences with 'was/were/been' + past verb. Rewrite with active verbs."
         })
     
+    # Power words
+    if power_words < 2 and word_count > 100:
+        recommendations.append({
+            "icon": "🚀",
+            "title": "Add impact with power words",
+            "description": "Use compelling words that create emotional impact: 'achieve', 'proven', 'transform', 'breakthrough', 'revolutionary'. They make presentations memorable.",
+            "severity": "low",
+            "action": "Replace bland verbs: 'improve' → 'transform', 'show' → 'reveal', 'help' → 'empower'"
+        })
+    
+    # Success message
     if len(recommendations) == 0:
         recommendations.append({
             "icon": "✨",
-            "title": "Great job!",
-            "description": "Your speaking pace and word choice are excellent",
-            "severity": "success"
+            "title": "Excellent presentation!",
+            "description": f"Your delivery is strong: {wpm} WPM (optimal pace), only {round(filler_count/word_count*100, 1)}% fillers, clear structure. Keep up this level of quality!",
+            "severity": "success",
+            "action": "Record this as your baseline. Maintain these standards in future presentations."
         })
+    
+    # Add top 3 priority actions
+    priority_actions = [rec for rec in recommendations if rec["severity"] in ["high", "medium"]][:3]
     
     return {
         "transcript": transcript,
         "word_count": word_count,
+        "sentence_count": sentence_count,
+        "avg_sentence_length": round(avg_sentence_length, 1),
         "filler_count": filler_count,
+        "filler_breakdown": dict(top_fillers),
         "filler_positions": filler_positions,
         "wpm": wpm,
         "duration_minutes": round(duration_minutes, 1),
         "confidence_score": round(avg_confidence, 1),
         "timeline": timeline,
-        "recommendations": recommendations
+        "recommendations": recommendations,
+        "priority_actions": [
+            {
+                "title": rec["title"],
+                "action": rec.get("action", "")
+            }
+            for rec in priority_actions
+        ],
+        "metrics": {
+            "questions": questions,
+            "weak_words": weak_words,
+            "power_words": power_words,
+            "passive_voice": passive_voice_indicators
+        }
+    }
+
+
+def analyze_sentence_starts(sentences: List[str]) -> Dict:
+    """
+    Analyze if sentences start with repetitive patterns
+    Returns score (0-1) and most common start
+    """
+    if len(sentences) < 3:
+        return {"score": 1.0, "common_start": "", "count": 0}
+    
+    # Get first 2 words of each sentence
+    starts = []
+    for s in sentences:
+        words = s.split()
+        if len(words) >= 2:
+            starts.append(f"{words[0]} {words[1]}".lower())
+        elif len(words) == 1:
+            starts.append(words[0].lower())
+    
+    if not starts:
+        return {"score": 1.0, "common_start": "", "count": 0}
+    
+    # Find most common start
+    start_counts = {}
+    for start in starts:
+        start_counts[start] = start_counts.get(start, 0) + 1
+    
+    most_common = max(start_counts.items(), key=lambda x: x[1])
+    diversity_score = 1.0 - (most_common[1] / len(starts))
+    
+    return {
+        "score": diversity_score,
+        "common_start": most_common[0],
+        "count": most_common[1]
     }
