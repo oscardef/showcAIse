@@ -7,5 +7,12 @@ pydantic>=2.5.0
 requests>=2.31.0
 pillow>=10.0.0
 python-dotenv>=1.0.0
-transformers>=4.30.0
-torch>=2.0.0
+transformers==4.33.0
+torch==2.5.1
+numpy==1.26.4
+TTS==0.22.0
+moviepy==2.2.1
+accelerate>=0.20.0
+soundfile>=0.12.1
+librosa>=0.10.0
+scipy>=1.11.0

@@ -1,20 +1,63 @@
 # Backend Dockerfile
-FROM python:3.12-slim
+FROM python:3.11.6-slim
 
-# Install FFmpeg
+# Install system dependencies including build tools for TTS
 RUN apt-get update && \
-    apt-get install -y ffmpeg && \
+    apt-get install -y ffmpeg gcc g++ make curl libsndfile1 && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Add Rust to PATH
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Agree to Coqui TTS non-commercial license (CPML)
+ENV COQUI_TOS_AGREED=1
+
+# Disable torchcodec globally to prevent TTS from trying to use it
+ENV TORCHAUDIO_USE_BACKEND_DISPATCHER=0
+ENV PYTORCH_ENABLE_MPS_FALLBACK=1
+
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install stable base dependencies first (rarely change, heavily cached)
+RUN pip install --no-cache-dir \
+    fastapi>=0.104.1 \
+    uvicorn[standard]>=0.24.0 \
+    python-multipart>=0.0.6 \
+    pydantic>=2.5.0 \
+    requests>=2.31.0 \
+    pillow>=10.0.0 \
+    python-dotenv>=1.0.0
 
-# Copy backend code
+# Install ML dependencies (large but stable)
+# Use torch 2.5.1 (user's working version)
+RUN pip install --no-cache-dir \
+    torch==2.5.1 \
+    numpy==1.26.4 \
+    transformers==4.33.0 \
+    accelerate>=0.20.0
+
+# Install TTS and related (large but stable)
+RUN pip install --no-cache-dir \
+    TTS==0.22.0 \
+    moviepy==2.2.1 \
+    soundfile>=0.12.1 \
+    librosa>=0.10.0 \
+    scipy>=1.11.0
+
+# Install smaller frequently-changing dependencies
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir \
+    openai>=1.3.0 \
+    ffmpeg-python>=0.2.0
+
+# Copy backend code LAST
 COPY backend/ .
+
+# Optional: Pre-download TTS model during build to avoid runtime download
+# Comment this out if you want to use volume caching instead
+# RUN python preload_tts.py
 
 # Expose port
 EXPOSE 8000

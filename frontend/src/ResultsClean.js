@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import MomentsAnalysis from './MomentsAnalysis';
 
 function Results({ data, onBack }) {
   const [activeTab, setActiveTab] = useState('moments');
+  const [voiceCloning, setVoiceCloning] = useState({
+    loading: false,
+    generated: false,
+    audioUrl: null,
+    improvedScript: null,
+    improvements: null,
+    error: null
+  });
 
   if (!data || !data.results) {
     return (
@@ -25,9 +34,35 @@ function Results({ data, onBack }) {
 
   const tabs = [
     { id: 'moments', label: 'Key Moments', count: strongCount + weakCount },
+    { id: 'voice-clone', label: '🎤 Voice Clone', icon: '✨' },
     { id: 'recommendations', label: 'Recommendations', count: results.recommendations?.length || 0 },
     { id: 'transcript', label: 'Transcript' }
   ];
+
+  const handleGenerateVoiceClone = async () => {
+    setVoiceCloning({ ...voiceCloning, loading: true, error: null });
+    
+    try {
+      const response = await axios.post(
+        `http://localhost:8000/api/voice-clone/${data.session_id}`
+      );
+      
+      setVoiceCloning({
+        loading: false,
+        generated: true,
+        audioUrl: response.data.audio_url,
+        improvedScript: response.data.improved_script,
+        improvements: response.data.improvements,
+        error: null
+      });
+    } catch (error) {
+      setVoiceCloning({
+        ...voiceCloning,
+        loading: false,
+        error: error.response?.data?.detail || 'Voice cloning failed'
+      });
+    }
+  };
 
   const renderMomentsTab = () => (
     <div className="tab-content-clean">
@@ -111,6 +146,115 @@ function Results({ data, onBack }) {
     );
   };
 
+  const renderVoiceCloneTab = () => {
+    return (
+      <div className="tab-content-clean">
+        <div className="voice-clone-section">
+          <div className="voice-clone-header">
+            <h2>🎤 AI Voice Cloning</h2>
+            <p>Generate an improved version of your presentation using voice cloning technology</p>
+          </div>
+
+          {!voiceCloning.generated && !voiceCloning.loading && (
+            <div className="voice-clone-intro">
+              <div className="feature-list">
+                <h3>What you'll get:</h3>
+                <ul>
+                  <li>✅ Improved script with fillers removed</li>
+                  <li>✅ Confident language replacing uncertain phrases</li>
+                  <li>✅ Optimized pacing and structure</li>
+                  <li>✅ Your voice cloned to deliver the improved script</li>
+                </ul>
+              </div>
+              <button 
+                className="generate-voice-btn"
+                onClick={handleGenerateVoiceClone}
+              >
+                🎙️ Generate Improved Presentation
+              </button>
+            </div>
+          )}
+
+          {voiceCloning.loading && (
+            <div className="voice-clone-loading">
+              <div className="spinner"></div>
+              <p>Cloning your voice and generating improved presentation...</p>
+              <p className="loading-note">This may take 30-60 seconds</p>
+            </div>
+          )}
+
+          {voiceCloning.error && (
+            <div className="voice-clone-error">
+              <h3>❌ Error</h3>
+              <p>{voiceCloning.error}</p>
+              <button onClick={handleGenerateVoiceClone}>Try Again</button>
+            </div>
+          )}
+
+          {voiceCloning.generated && (
+            <div className="voice-clone-result">
+              <div className="result-header">
+                <h3>✅ Voice Clone Generated!</h3>
+              </div>
+
+              {voiceCloning.improvements && (
+                <div className="improvements-summary">
+                  <h4>Improvements Applied:</h4>
+                  <ul>
+                    {voiceCloning.improvements.improvements.map((imp, idx) => (
+                      <li key={idx}>{imp}</li>
+                    ))}
+                  </ul>
+                  <div className="stats-comparison">
+                    <div className="stat-item">
+                      <span className="label">Words:</span>
+                      <span className="value">
+                        {voiceCloning.improvements.original_word_count} → {voiceCloning.improvements.improved_word_count}
+                      </span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="label">Target Duration:</span>
+                      <span className="value">
+                        {voiceCloning.improvements.estimated_duration_seconds}s
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="audio-player-section">
+                <h4>🎧 Improved Presentation Audio:</h4>
+                <audio 
+                  controls 
+                  src={`http://localhost:8000${voiceCloning.audioUrl}`}
+                  className="cloned-audio-player"
+                >
+                  Your browser does not support audio playback.
+                </audio>
+                <a 
+                  href={`http://localhost:8000${voiceCloning.audioUrl}`}
+                  download="improved_presentation.wav"
+                  className="download-audio-btn"
+                >
+                  ⬇️ Download Audio
+                </a>
+              </div>
+
+              {voiceCloning.improvedScript && (
+                <div className="improved-script">
+                  <h4>📝 Improved Script:</h4>
+                  <div className="script-text">
+                    {voiceCloning.improvedScript}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderTranscriptTab = () => {
     const highlightFillers = (text, positions) => {
       if (!positions || positions.length === 0) return text;
@@ -180,6 +324,7 @@ function Results({ data, onBack }) {
 
       <div className="tabs-content">
         {activeTab === 'moments' && renderMomentsTab()}
+        {activeTab === 'voice-clone' && renderVoiceCloneTab()}
         {activeTab === 'recommendations' && renderRecommendationsTab()}
         {activeTab === 'transcript' && renderTranscriptTab()}
       </div>

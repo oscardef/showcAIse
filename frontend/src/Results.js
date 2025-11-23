@@ -6,6 +6,14 @@ import ClipReview from './ClipReview';
 function Results({ data, onBack }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [videoTime, setVideoTime] = useState(0);
+  const [voiceCloning, setVoiceCloning] = useState({
+    loading: false,
+    error: null,
+    completed: false,
+    audioUrl: null,
+    improvedScript: null,
+    improvements: null
+  });
 
   if (!data || !data.results) {
     return (
@@ -27,8 +35,46 @@ function Results({ data, onBack }) {
     { id: 'sentiment', label: 'Sentiment Analysis' },
     { id: 'delivery', label: 'Delivery Metrics' },
     { id: 'recommendations', label: 'Recommendations' },
+    { id: 'voiceclone', label: 'Voice Clone' },
     { id: 'transcript', label: 'Transcript' }
   ];
+
+  const handleGenerateVoiceClone = async () => {
+    setVoiceCloning({ ...voiceCloning, loading: true, error: null });
+    
+    try {
+      const response = await fetch(`http://localhost:8000/api/voice-clone/${data.session_id}`, {
+        method: 'POST'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Voice cloning failed');
+      }
+      
+      const result = await response.json();
+      
+      setVoiceCloning({
+        loading: false,
+        error: null,
+        completed: true,
+        audioUrl: `http://localhost:8000${result.audio_url}`,
+        improvedScript: result.improved_script,
+        improvements: result.improvements
+      });
+      
+      // Switch to voice clone tab to show results
+      setActiveTab('voiceclone');
+      
+    } catch (error) {
+      console.error('Voice cloning error:', error);
+      setVoiceCloning({
+        ...voiceCloning,
+        loading: false,
+        error: error.message || 'Failed to generate voice clone'
+      });
+    }
+  };
 
   const jumpToTimestamp = (seconds) => {
     setVideoTime(seconds);
@@ -89,6 +135,36 @@ function Results({ data, onBack }) {
           <div className="metric-label-top">Duration</div>
           <div className="metric-value-large">{results.duration_minutes} <span className="unit">min</span></div>
         </div>
+      </div>
+
+      <div className="voice-clone-section card">
+        <h2>🎤 Voice Cloning</h2>
+        <p>Generate an improved version of your presentation with your own voice</p>
+        {!voiceCloning.completed && !voiceCloning.loading && (
+          <button 
+            className="btn-primary" 
+            onClick={handleGenerateVoiceClone}
+            style={{ marginTop: '12px' }}
+          >
+            Generate Improved Voice Clone
+          </button>
+        )}
+        {voiceCloning.loading && (
+          <div className="loading" style={{ marginTop: '12px' }}>
+            <div className="spinner"></div>
+            <p>Generating voice clone... This may take 1-2 minutes</p>
+          </div>
+        )}
+        {voiceCloning.error && (
+          <div className="error-message" style={{ marginTop: '12px', color: '#ef4444' }}>
+            ❌ {voiceCloning.error}
+          </div>
+        )}
+        {voiceCloning.completed && (
+          <div className="success-message" style={{ marginTop: '12px', color: '#10b981' }}>
+            ✅ Voice clone generated! Check the Voice Clone tab to listen.
+          </div>
+        )}
       </div>
 
       <div className="quick-insights card">
@@ -464,6 +540,135 @@ function Results({ data, onBack }) {
     </div>
   );
 
+  const renderVoiceCloneTab = () => (
+    <div className="tab-content">
+      {!voiceCloning.completed && !voiceCloning.loading && (
+        <div className="card">
+          <h2>🎤 Voice Cloning</h2>
+          <p>Generate an improved version of your presentation using your own voice.</p>
+          <p style={{ marginTop: '16px' }}>This will:</p>
+          <ul style={{ marginLeft: '20px', marginTop: '8px' }}>
+            <li>Remove all filler words from your speech</li>
+            <li>Replace uncertain language with confident phrasing</li>
+            <li>Maintain your natural voice and speaking style</li>
+            <li>Generate clean audio ready for video creation</li>
+          </ul>
+          <button 
+            className="btn-primary" 
+            onClick={handleGenerateVoiceClone}
+            style={{ marginTop: '20px' }}
+          >
+            Generate Improved Voice Clone
+          </button>
+        </div>
+      )}
+      
+      {voiceCloning.loading && (
+        <div className="card">
+          <div className="loading">
+            <div className="spinner"></div>
+            <h2>Generating Voice Clone...</h2>
+            <p>This process takes 1-2 minutes. We're:</p>
+            <ul style={{ textAlign: 'left', marginLeft: '40px', marginTop: '12px' }}>
+              <li>Extracting your voice from the video</li>
+              <li>Generating an improved script</li>
+              <li>Cloning your voice with AI (TTS XTTS v2)</li>
+              <li>Creating the final audio file</li>
+            </ul>
+          </div>
+        </div>
+      )}
+      
+      {voiceCloning.error && (
+        <div className="card">
+          <h2 style={{ color: '#ef4444' }}>❌ Voice Cloning Failed</h2>
+          <p>{voiceCloning.error}</p>
+          <button 
+            className="btn-primary" 
+            onClick={handleGenerateVoiceClone}
+            style={{ marginTop: '16px' }}
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+      
+      {voiceCloning.completed && voiceCloning.audioUrl && (
+        <div className="tab-content">
+          <div className="card">
+            <h2>✅ Voice Clone Generated Successfully!</h2>
+            <p>Listen to your improved presentation:</p>
+            
+            <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+              <audio controls style={{ width: '100%', maxWidth: '600px' }}>
+                <source src={voiceCloning.audioUrl} type="audio/wav" />
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <a 
+                href={voiceCloning.audioUrl} 
+                download={`improved_presentation_${data.session_id}.wav`}
+                className="btn-primary"
+              >
+                Download Audio
+              </a>
+            </div>
+          </div>
+          
+          {voiceCloning.improvements && (
+            <div className="card">
+              <h2>📊 Improvements Made</h2>
+              <div className="metrics-grid">
+                <div className="metric-card-modern">
+                  <div className="metric-label-top">Original Words</div>
+                  <div className="metric-value-large">{voiceCloning.improvements.original_word_count}</div>
+                </div>
+                <div className="metric-card-modern">
+                  <div className="metric-label-top">Improved Words</div>
+                  <div className="metric-value-large">{voiceCloning.improvements.improved_word_count}</div>
+                </div>
+                <div className="metric-card-modern">
+                  <div className="metric-label-top">Target WPM</div>
+                  <div className="metric-value-large">{voiceCloning.improvements.target_wpm}</div>
+                </div>
+                <div className="metric-card-modern">
+                  <div className="metric-label-top">Est. Duration</div>
+                  <div className="metric-value-large">{voiceCloning.improvements.estimated_duration_seconds}s</div>
+                </div>
+              </div>
+              
+              {voiceCloning.improvements.improvements && voiceCloning.improvements.improvements.length > 0 && (
+                <div style={{ marginTop: '20px' }}>
+                  <h3>What Changed:</h3>
+                  <ul style={{ marginLeft: '20px', marginTop: '12px' }}>
+                    {voiceCloning.improvements.improvements.map((improvement, idx) => (
+                      <li key={idx} style={{ marginBottom: '8px' }}>{improvement}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {voiceCloning.improvedScript && (
+            <div className="card">
+              <h2>📝 Improved Script</h2>
+              <div className="transcript-content" style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px' }}>
+                {voiceCloning.improvedScript}
+              </div>
+              
+              <div style={{ marginTop: '20px', padding: '12px', backgroundColor: '#fef3c7', borderRadius: '8px' }}>
+                <strong>💡 Tip:</strong> Compare this with the original transcript in the Transcript tab to see all the improvements!
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   const renderTranscriptTab = () => (
     <div className="tab-content">
       <div className="transcript-viewer card">
@@ -511,6 +716,7 @@ function Results({ data, onBack }) {
           {activeTab === 'sentiment' && renderSentimentTab()}
           {activeTab === 'delivery' && renderDeliveryTab()}
           {activeTab === 'recommendations' && renderRecommendationsTab()}
+          {activeTab === 'voiceclone' && renderVoiceCloneTab()}
           {activeTab === 'transcript' && renderTranscriptTab()}
         </div>
       </div>

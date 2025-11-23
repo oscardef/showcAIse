@@ -7,7 +7,8 @@ AI-powered presentation analysis tool that provides instant feedback on your spe
 - **Smart Analysis**: Detects strong moments and areas for improvement
 - **Confidence Scoring**: Advanced algorithm analyzing pace, fillers, sentiment, and language quality
 - **Segment-Specific Feedback**: Play and review individual moments with categorized insights
-- **Clean Professional UI**: Focused 3-tab interface (Moments, Recommendations, Transcript)
+- **🎤 Voice Cloning**: Generate improved presentations using your own voice (NEW!)
+- **Clean Professional UI**: Focused interface with dedicated Voice Clone tab
 - **Video Playback**: Segment-only player that isolates specific moments for focused review
 - **Actionable Recommendations**: Specific, prioritized suggestions for improvement
 
@@ -16,6 +17,7 @@ AI-powered presentation analysis tool that provides instant feedback on your spe
 ### Prerequisites
 - Docker Desktop ([Download](https://www.docker.com/products/docker-desktop))
 - Together AI API key ([Get one here](https://together.ai))
+- **Note**: Voice cloning requires ~2GB model download on first use (cached for future runs)
 
 ### Setup & Run
 
@@ -50,24 +52,36 @@ docker compose down
 
 # Rebuild after code changes
 docker compose up --build
+
+# Pre-download TTS model (optional, for faster first voice clone)
+docker compose exec backend python preload_tts.py
 ```
 
 ## 💻 Manual Setup (Without Docker)
 
 ### Prerequisites
-- Python 3.12+
+- **Python 3.11.6** (Required for TTS library - 3.12+ not supported)
 - Node.js 18+
 - FFmpeg ([Install guide](https://ffmpeg.org/download.html))
+- ~2GB free space for TTS model
 
 ### Backend Setup
 
 ```bash
 cd backend
+
+# Use Python 3.11 (required for TTS)
+python3.11 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 pip install -r requirements.txt
 
 # Configure API key
 cp .env.example .env
 # Edit .env: TOGETHER_API_KEY="your-key-here"
+
+# Optional: Pre-download TTS model to avoid runtime delay
+python preload_tts.py
 
 # Run
 python main.py
@@ -125,27 +139,148 @@ Frontend runs at http://localhost:3000
 
 ### Results Dashboard
 
-**1. Moments Tab** (Main Focus)
+**1. Overview Tab**
+- Key metrics (words, WPM, fillers, duration)
+- Overall confidence score
+- Voice cloning quick-start button
+- Top 3 priority actions
+
+**2. Key Moments Tab**
 - Overview stats (performance score, strong/weak counts, duration)
 - **Strong Moments**: What made them effective with categories
 - **Weak Moments**: Specific issues + improvement suggestions
 - Segment-only video player (plays just that moment)
 
-**2. Recommendations Tab**
+**3. Sentiment Analysis Tab**
+- Overall sentiment and tone analysis
+- Sentiment trends (improving/declining/stable)
+- Actionable insights with severity levels
+- Negative moments to review
+- Best positive peaks
+
+**4. Delivery Metrics Tab**
+- Confidence calculation breakdown
+- Performance timeline chart
+- Weakest and strongest moments
+- Detailed speech analysis
+- Top filler words breakdown
+
+**5. Recommendations Tab**
 - Priority actions (top 3 critical improvements)
 - Additional suggestions with specific steps
+- Severity-based categorization
 
-**3. Transcript Tab**
+**6. Voice Clone Tab** 🎤 (NEW!)
+- Generate improved presentation with your voice
+- Remove all filler words automatically
+- Replace uncertain language with confident phrasing
+- Maintain natural voice and speaking style
+- Download audio ready for video creation
+- View improved script with change summary
+- See metrics comparison (before/after)
+
+**7. Transcript Tab**
 - Full text with filler word highlighting
 - Easy reference for detailed review
+
+## 🎤 Voice Cloning Feature
+
+### How It Works
+
+1. **Upload & Analyze**: First, analyze your presentation video
+2. **Generate Clone**: Click "Generate Improved Voice Clone" button
+3. **AI Processing** (~1-2 minutes):
+   - Extracts audio from your video
+   - Analyzes transcript and generates improved script
+   - Removes filler words ("um", "uh", "like", etc.)
+   - Replaces uncertain language ("I guess" → "I believe")
+   - Clones your voice using Coqui TTS XTTS v2 model
+   - Generates clean audio output
+4. **Download**: Get WAV file ready for video creation
+
+### What Gets Improved
+
+**Removed:**
+- All filler words (um, uh, like, you know, so, actually, basically, literally)
+- Uncertain phrases (I think maybe, I guess, I don't know, kind of, sort of)
+
+**Replaced:**
+- "I think maybe" → "I believe"
+- "I guess" → "I believe"
+- "probably" → "will"
+- "might be" → "is"
+- "could be" → "is"
+- "maybe" → "will"
+
+**Maintained:**
+- Your natural voice characteristics
+- Speaking rhythm and cadence
+- Emotional tone
+- Core message and content
+
+### Technical Details
+
+**Model**: Coqui TTS XTTS v2
+- Multilingual voice cloning
+- High-quality synthesis
+- ~2GB model size
+- CPU-optimized (no GPU required)
+
+**Performance**:
+- First run: 2-3 minutes (includes model download)
+- Subsequent runs: 1-2 minutes (model cached)
+- Output: WAV format, ready for video
+
+**Caching**:
+- Docker: Persistent volumes (`tts_cache`)
+- Manual: `~/.local/share/tts/`
+- Model downloaded once, reused forever
+
+### Requirements
+
+- Python 3.11.6 (TTS doesn't support 3.12+)
+- ~2GB disk space for model
+- 2-4GB RAM during generation
+- Audio track in video (mono/stereo OK)
+
+### Troubleshooting Voice Cloning
+
+**"Voice cloning failed"**
+```bash
+# Check if video has audio
+docker compose exec backend python -c "from moviepy.editor import VideoFileClip; v = VideoFileClip('videos/YOUR_SESSION_ID.mp4'); print(v.audio)"
+
+# Check TTS cache
+docker compose exec backend ls -lh /root/.local/share/tts/
+
+# Re-download model if corrupted
+docker compose exec backend rm -rf /root/.local/share/tts/
+docker compose exec backend python preload_tts.py
+```
+
+**"Model download too slow"**
+```bash
+# Pre-download before first use
+docker compose exec backend python preload_tts.py
+
+# Or during build (edit Dockerfile.backend, uncomment line):
+# RUN python preload_tts.py
+```
+
+**"Out of memory"**
+- Close other applications
+- Increase Docker memory limit (Docker Desktop → Settings → Resources)
+- Try shorter videos (<5 minutes)
 
 ## 🏗️ Tech Stack
 
 **Backend**
-- FastAPI 0.121.3 (Python 3.12)
+- FastAPI 0.121.3 (Python 3.11.6 for TTS compatibility)
 - Together AI Whisper API (transcription)
-- Transformers 4.30+ (DistilBERT sentiment)
-- FFmpeg (audio extraction)
+- Coqui TTS XTTS v2 (voice cloning)
+- Transformers 4.33.0 (DistilBERT sentiment)
+- MoviePy 1.0.3 (audio extraction)
+- FFmpeg (media processing)
 
 **Frontend**
 - React 18.2
@@ -220,6 +355,38 @@ Upload video for analysis
   "timeline": [...]
 }
 ```
+
+### POST /api/voice-clone/{session_id}
+Generate improved presentation with voice cloning
+
+**Request**: POST to `/api/voice-clone/{session_id}` (no body required)
+
+**Response**:
+```json
+{
+  "status": "success",
+  "audio_url": "/api/cloned-audio/{session_id}",
+  "improved_script": "Cleaned and improved transcript...",
+  "improvements": {
+    "improvements": [
+      "Removed 15 filler words",
+      "Reduced script by 23 words (8.2%)",
+      "Replaced uncertain language with confident phrasing",
+      "Optimized sentence structure for clarity"
+    ],
+    "original_word_count": 280,
+    "improved_word_count": 257,
+    "original_wpm": 167,
+    "target_wpm": 145,
+    "estimated_duration_seconds": 106.3
+  }
+}
+```
+
+### GET /api/cloned-audio/{session_id}
+Download cloned audio file
+
+**Response**: WAV audio file (audio/wav)
 
 ## 🐛 Troubleshooting
 
