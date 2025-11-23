@@ -42,7 +42,7 @@ function Results({ data, onBack }) {
 
   const tabs = [
     { id: 'moments', label: 'Key Moments', count: strongCount + weakCount },
-    { id: 'voice-clone', label: '🎤 AI Generation', icon: '✨' },
+    { id: 'voice-clone', label: 'AI Generation' },
     { id: 'recommendations', label: 'Recommendations', count: results.recommendations?.length || 0 },
     { id: 'transcript', label: 'Transcript' }
   ];
@@ -182,7 +182,7 @@ function Results({ data, onBack }) {
       <div className="tab-content-clean">
         <div className="voice-clone-section">
           <div className="voice-clone-header">
-            <h2>🎤 AI Generation</h2>
+            <h2>AI Generation</h2>
             <p>Generate improved versions of your presentation</p>
           </div>
 
@@ -191,10 +191,10 @@ function Results({ data, onBack }) {
               <div className="feature-list">
                 <h3>What you'll get:</h3>
                 <ul>
-                  <li>✅ Improved script with fillers removed</li>
-                  <li>✅ Confident language replacing uncertain phrases</li>
-                  <li>✅ Optimized pacing and structure</li>
-                  <li>✅ AI-generated audio and video with your improvements</li>
+                  <li>Improved script with fillers removed</li>
+                  <li>Confident language replacing uncertain phrases</li>
+                  <li>Optimized pacing and structure</li>
+                  <li>AI-generated audio and video with your improvements</li>
                 </ul>
               </div>
               
@@ -203,14 +203,13 @@ function Results({ data, onBack }) {
                   className="generate-voice-btn"
                   onClick={() => handleGenerateVoiceClone(false)}
                 >
-                  🎙️ Generate Voice Clone
+                  Generate Voice Clone
                 </button>
                 <button 
-                  className="generate-voice-btn"
+                  className="generate-voice-btn demo"
                   onClick={() => handleGenerateVoiceClone(true)}
-                  style={{ backgroundColor: '#6b7280', backgroundImage: 'none' }}
                 >
-                  🎧 Play Demo Audio
+                  Play Demo Audio
                 </button>
               </div>
             </div>
@@ -226,7 +225,7 @@ function Results({ data, onBack }) {
 
           {voiceCloning.error && (
             <div className="voice-clone-error">
-              <h3>❌ Error</h3>
+              <h3>Error</h3>
               <p>{voiceCloning.error}</p>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
                 <button onClick={() => handleGenerateVoiceClone(false)}>Try Again</button>
@@ -240,7 +239,7 @@ function Results({ data, onBack }) {
           {voiceCloning.generated && (
             <div className="voice-clone-result">
               <div className="result-header">
-                <h3>✅ {voiceCloning.demoMode ? 'Demo Audio' : 'Voice Clone Generated!'}</h3>
+                <h3>{voiceCloning.demoMode ? 'Demo Audio' : 'Voice Clone Generated'}</h3>
               </div>
 
               {voiceCloning.improvements && (
@@ -269,7 +268,7 @@ function Results({ data, onBack }) {
               )}
 
               <div className="audio-player-section">
-                <h4>🎧 Improved Presentation Audio:</h4>
+                <h4>Improved Presentation Audio:</h4>
                 <audio 
                   controls 
                   src={`http://localhost:8000${voiceCloning.audioUrl}`}
@@ -282,13 +281,13 @@ function Results({ data, onBack }) {
                   download="improved_presentation.wav"
                   className="download-audio-btn"
                 >
-                  ⬇️ Download Audio
+                  Download Audio
                 </a>
               </div>
 
               {voiceCloning.improvedScript && (
                 <div className="improved-script">
-                  <h4>📝 Improved Script:</h4>
+                  <h4>Improved Script:</h4>
                   <div className="script-text">
                     {voiceCloning.improvedScript}
                   </div>
@@ -299,7 +298,7 @@ function Results({ data, onBack }) {
 
           {/* Video Generation Section - Independent from audio */}
           <div className="video-generation-section" style={{ marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e5e7eb' }}>
-            <h3>🎬 Video Generation</h3>
+            <h3>Video Generation</h3>
             <p>Generate a complete video with the improved audio</p>
 
             {!videoGeneration.generated && !videoGeneration.loading && (
@@ -308,14 +307,13 @@ function Results({ data, onBack }) {
                   className="generate-voice-btn"
                   onClick={() => handleGenerateVideo(false)}
                 >
-                  🎬 Generate Video
+                  Generate Video
                 </button>
                 <button 
-                  className="generate-voice-btn"
+                  className="generate-voice-btn demo"
                   onClick={() => handleGenerateVideo(true)}
-                  style={{ backgroundColor: '#6b7280', backgroundImage: 'none' }}
                 >
-                  📹 Play Demo Video
+                  Play Demo Video
                 </button>
               </div>
             )}
@@ -341,7 +339,7 @@ function Results({ data, onBack }) {
 
             {videoGeneration.generated && videoGeneration.videoUrl && (
               <div style={{ marginTop: '20px' }}>
-                <h4>✅ {videoGeneration.demoMode ? 'Demo Video' : 'Video Generated!'}</h4>
+                <h4>{videoGeneration.demoMode ? 'Demo Video' : 'Video Generated'}</h4>
                 <video 
                   key={videoGeneration.videoUrl}
                   controls 
@@ -359,7 +357,7 @@ function Results({ data, onBack }) {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    ⬇️ Download Video
+                    Download Video
                   </a>
                 </div>
               </div>

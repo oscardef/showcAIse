@@ -98,38 +98,36 @@ body {
 
 /* Voice Cloning Styles */
 .voice-clone-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: white;
   padding: 24px;
   border-radius: 12px;
   margin-bottom: 24px;
 }
 
 .voice-clone-section h2 {
-  color: white;
+  color: #111827;
   margin-bottom: 8px;
 }
 
 .voice-clone-section p {
-  opacity: 0.95;
+  color: #6b7280;
   margin-bottom: 0;
 }
 
 .voice-clone-section .btn-primary {
-  background: white;
-  color: #667eea;
+  background: #111827;
+  color: white;
   border: none;
   padding: 12px 32px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: all 0.2s;
 }
 
 .voice-clone-section .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  background: #1f2937;
 }
 
 .success-message {
@@ -777,23 +775,25 @@ body {
 }
 
 .voice-clone-intro {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
+  border: 2px solid #e5e7eb;
   padding: 40px;
   border-radius: 12px;
-  color: white;
   text-align: center;
 }
 
 .feature-list {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f9fafb;
   padding: 24px;
   border-radius: 8px;
   margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
 }
 
 .feature-list h3 {
   margin-bottom: 16px;
   font-size: 1.3rem;
+  color: #111827;
 }
 
 .feature-list ul {
@@ -807,23 +807,34 @@ body {
 .feature-list li {
   padding: 8px 0;
   font-size: 1.05rem;
+  color: #4b5563;
 }
 
 .generate-voice-btn {
-  background: white;
-  color: #667eea;
+  background: #111827;
+  color: white;
   border: none;
   padding: 16px 32px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
 .generate-voice-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  background: #1f2937;
+}
+
+.generate-voice-btn.demo {
+  background: white;
+  color: #111827;
+  border: 2px solid #e5e7eb;
+}
+
+.generate-voice-btn.demo:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
 }
 
 .voice-clone-loading {
@@ -879,21 +890,25 @@ body {
 }
 
 .result-header h3 {
-  color: #10b981;
+  color: #111827;
   font-size: 1.5rem;
   margin-bottom: 24px;
+  font-weight: 600;
 }
 
 .improvements-summary {
-  background: #f0fdf4;
-  border-left: 4px solid #10b981;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #111827;
   padding: 24px;
   margin-bottom: 32px;
+  border-radius: 8px;
 }
 
 .improvements-summary h4 {
-  color: #047857;
+  color: #111827;
   margin-bottom: 16px;
+  font-weight: 600;
 }
 
 .improvements-summary ul {
@@ -903,7 +918,8 @@ body {
 
 .improvements-summary li {
   padding: 8px 0;
-  color: #065f46;
+  color: #4b5563;
+  line-height: 1.6;
 }
 
 .stats-comparison {
@@ -911,7 +927,7 @@ body {
   gap: 24px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #86efac;
+  border-top: 1px solid #e5e7eb;
 }
 
 .stats-comparison .stat-item {
@@ -922,17 +938,21 @@ body {
 
 .stats-comparison .label {
   font-size: 0.9rem;
-  color: #047857;
+  color: #6b7280;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .stats-comparison .value {
   font-size: 1.1rem;
-  color: #065f46;
+  color: #111827;
+  font-weight: 600;
 }
 
 .audio-player-section {
   background: #f9fafb;
+  border: 1px solid #e5e7eb;
   padding: 24px;
   border-radius: 8px;
   margin-bottom: 32px;
@@ -941,32 +961,33 @@ body {
 .audio-player-section h4 {
   color: #111827;
   margin-bottom: 16px;
+  font-weight: 600;
 }
 
 .cloned-audio-player {
   width: 100%;
   margin-bottom: 16px;
+  border-radius: 6px;
 }
 
 .download-audio-btn {
   display: inline-block;
-  background: #3b82f6;
+  background: #111827;
   color: white;
   padding: 12px 24px;
   border-radius: 6px;
   text-decoration: none;
   font-weight: 600;
-  transition: all 0.3s;
+  transition: all 0.2s;
 }
 
 .download-audio-btn:hover {
-  background: #2563eb;
-  transform: translateY(-2px);
+  background: #1f2937;
 }
 
 .improved-script {
-  background: white;
-  border: 2px solid #e5e7eb;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 24px;
 }
@@ -974,13 +995,15 @@ body {
 .improved-script h4 {
   color: #111827;
   margin-bottom: 16px;
+  font-weight: 600;
 }
 
 .script-text {
-  background: #f9fafb;
+  background: white;
   padding: 20px;
-  border-left: 4px solid #3b82f6;
-  font-size: 1.05rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1rem;
   line-height: 1.8;
   color: #374151;
 }
