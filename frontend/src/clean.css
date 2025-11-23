@@ -1044,3 +1044,184 @@ body {
     width: 100%;
   }
 }
+
+/* Body Language Styles */
+.body-language-overall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.overall-score-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.score-circle {
+  width: 120px;
+  height: 120px;
+  border: 6px solid;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+}
+
+.score-number {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.overall-summary {
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #4b5563;
+  max-width: 700px;
+}
+
+.body-language-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.category-card {
+  padding: 24px;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.category-header h3 {
+  font-size: 1.1rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.category-score {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.category-feedback {
+  color: #6b7280;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.specific-moments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.specific-moment-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.moment-timestamp {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  background: #111827;
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.moment-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.moment-issue,
+.moment-suggestion {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.moment-issue strong,
+.moment-suggestion strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.top-improvements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.improvement-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.improvement-number {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: #111827;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.improvement-text {
+  flex: 1;
+  color: #4b5563;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+  .body-language-categories {
+    grid-template-columns: 1fr;
+  }
+  
+  .score-circle {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .score-number {
+    font-size: 2rem;
+  }
+}

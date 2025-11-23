@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import MomentsAnalysis from './MomentsAnalysis';
+import BodyLanguage from './BodyLanguage';
 
 function Results({ data, onBack }) {
   const [activeTab, setActiveTab] = useState('moments');
@@ -42,6 +43,7 @@ function Results({ data, onBack }) {
 
   const tabs = [
     { id: 'moments', label: 'Key Moments', count: strongCount + weakCount },
+    { id: 'body-language', label: 'Body Language' },
     { id: 'voice-clone', label: 'AI Generation' },
     { id: 'recommendations', label: 'Recommendations', count: results.recommendations?.length || 0 },
     { id: 'transcript', label: 'Transcript' }
@@ -437,6 +439,7 @@ function Results({ data, onBack }) {
 
       <div className="tabs-content">
         {activeTab === 'moments' && renderMomentsTab()}
+        {activeTab === 'body-language' && <BodyLanguage />}
         {activeTab === 'voice-clone' && renderVoiceCloneTab()}
         {activeTab === 'recommendations' && renderRecommendationsTab()}
         {activeTab === 'transcript' && renderTranscriptTab()}
