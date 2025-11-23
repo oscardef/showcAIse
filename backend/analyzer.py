@@ -547,10 +547,7 @@ def analyze_video(video_path: str) -> dict:
     body_language_feedback = get_body_language_feedback(landmarks_data)
 
     # Return both landmarks and feedback
-    return {
-        "landmarks": landmarks_data,
-        "body_language": body_language_feedback
-    }
+    return landmarks_data,
 
 def save_feedback_to_file(feedback: dict, filename: str = "body_language_feedback.json") -> None:
     """
@@ -576,4 +573,64 @@ def angle_at(joint, p1, p2):
     if mag1 == 0 or mag2 == 0: return 0
     return math.degrees(math.acos(max(-1, min(1, dot/(mag1*mag2)))))
 
+from together import Together
 
+def together_test() -> None:
+    """
+    Test Together API connectivity and print a simple completion.
+    """
+    import together
+    
+
+from together import Together
+
+def llm_prompt(text_for_llm: str) -> str:
+    client = Together()  # reads TOGETHER_API_KEY from environment
+
+    system_prompt = """You are an expert public-speaking and body-language coach with 20+ years analyzing presentations.
+
+    Analyze the provided JSON data (key metrics from Mediapipe landmarks every ~0.2 seconds). Focus on trends over time, e.g., posture shifts at specific timestamps.
+
+    Return ONLY valid JSON (no extra text) in this exact structure:
+    {
+    "overall_score_out_of_10": 7.5,
+    "summary": "A 2–3 sentence overall impression of the body language.",
+    "eye_contact": {"score": "8/10", "feedback": "Detailed actionable advice..."},
+    "posture": {"score": "6/10", "feedback": "E.g., Leaned left for 68% of the talk; suggest centering..."},
+    "gestures": {"score": "9/10", "feedback": "..."},
+    "openness_and_confidence": {"score": "7/10", "feedback": "..."},
+    "movement_and_energy": {"score": "5/10", "feedback": "Too static—recommend subtle pacing..."},
+    "specific_moments": [
+        {"timestamp_sec": 45.3, "issue": "Hands in pockets detected", "suggestion": "Use open palms for emphasis"},
+        {"timestamp_sec": 120.0, "issue": "Slouch during Q&A", "suggestion": "..."}
+    ],
+    "three_biggest_things_to_improve": [
+        "1. Improve posture stability",
+        "2. Add more purposeful gestures",
+        "3. Vary energy levels"
+    ]
+    }
+
+    Be concrete, positive where possible, and reference data (e.g., 'shoulder tilt >10° for 40% of frames'). Assume 30 FPS video."""
+
+    user_prompt = f"Here is the data from an oral presentation:\n{text_for_llm}"
+
+    try:
+        response = client.chat.completions.create(
+            model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=1500,
+            temperature=0.5,
+        )
+
+        output = response.choices[0].message.content
+        print("Together API output:", output)
+
+    except Exception as e:
+        print(f"Together API error: {e}")
+        output = ""
+
+    return output

@@ -9,3 +9,4 @@ pillow>=10.0.0
 mediapipe 
 opencv-python 
 together 
+llama-index>=0.10.0

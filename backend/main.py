@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from analyzer import * 
 
+
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -55,7 +57,7 @@ async def upload_video(video: UploadFile):
     # Save uploaded video
     video_path = UPLOAD_DIR / f"{session_id}.mp4"
     audio_path = UPLOAD_DIR / f"{session_id}.wav"
-    landmarks_path = UPLOAD_DIR / f"{session_id}_landmarks.json"
+    landmarks_path = f"landmarks.json"
     
     try:
         # Save video file
@@ -87,55 +89,57 @@ async def upload_video(video: UploadFile):
         
         # Read landmarks.json content
         with open(landmarks_path, "r") as lf:
-            landmarks_json = json.load(lf)
+            data = json.load(lf)
+            frames = data[0]["frames"]
         
         summary = []
-        for i, frame in enumerate(landmarks_json):
+        
+        for i, frame in enumerate(frames):
             if i % 5 != 0: continue  # downsample to 5–6 fps is enough
-            p = frame['pose_landmarks']
-            f = frame['face_landmarks']
+            p = frame['landmarks']['pose']
+            f = frame['landmarks']['face']
 
-        # Example metrics we care about
-        left_shoulder  = p[11]
-        right_shoulder = p[12]
-        left_hip       = p[23]
-        right_hip      = p[24]
-        nose           = p[0]
-        mid_hip = {'x': (left_hip['x']+right_hip['x'])/2,
-                    'y': (left_hip['y']+right_hip['y'])/2,
-                    'z': (left_hip['z']+right_hip['z'])/2}
-
-        summary.append({
-            "frame": i,
-            "timestamp_sec": i / 30.0,
-            "shoulder_width": dist(left_shoulder, right_shoulder),
-            "hip_width": dist(left_hip, right_hip),
-            "body_tilt_deg": angle_at(mid_hip, left_shoulder, right_shoulder),
-            "leaning_forward": nose['z'],  # negative = closer to camera
-            "left_hand_raise": p[15]['y'],  # lower y = higher on screen
-            "right_hand_raise": p[16]['y'],
-            "openness_score": dist(left_shoulder, left_hip) + dist(right_shoulder, right_hip),  # rough proxy
-            "face_visibility": f[0]['visibility'] if f else 0,
-        })
+            # Example metrics we care about
+            left_shoulder  = p[11]
+            right_shoulder = p[12]
+            left_hip       = p[23]
+            right_hip      = p[24]
+            nose           = p[0]
+            mid_hip = {'x': (left_hip['x']+right_hip['x'])/2,
+                        'y': (left_hip['y']+right_hip['y'])/2,
+                        'z': (left_hip['z']+right_hip['z'])/2}
+            summary.append({
+                "frame": i,
+                "timestamp_sec": i / 30.0,
+                "shoulder_width": dist(left_shoulder, right_shoulder),
+                "hip_width": dist(left_hip, right_hip),
+                "body_tilt_deg": angle_at(mid_hip, left_shoulder, right_shoulder),
+                "leaning_forward": nose['z'],  # negative = closer to camera
+                "left_hand_raise": p[15]['y'],  # lower y = higher on screen
+                "right_hand_raise": p[16]['y'],
+                "openness_score": dist(left_shoulder, left_hip) + dist(right_shoulder, right_hip),  # rough proxy
+            })
 
         text_for_llm = json.dumps(summary, indent=2)
 
-        with open('text_for_llm', "w", encoding="utf-8") as f:
-            json.dump(text_for_llm, f, ensure_ascii=False, indent=2)
-            
+        out = llm_prompt(text_for_llm=text_for_llm)
+        with open("output.txt", "a") as f:
+            f.write(out)
+
         # Store results
         session_data = {
             "session_id": session_id,
             "status": "completed",
             "results": analysis,
-            "landmarks": landmarks_json
+            "landmarks": data,
+            "llm_output": out
         }
         sessions[session_id] = session_data
         
         # Cleanup files
         video_path.unlink(missing_ok=True)
         audio_path.unlink(missing_ok=True)
-        landmarks_path.unlink(missing_ok=True)
+        #landmarks_path.unlink(missing_ok=True)
         
         return session_data
         
@@ -143,8 +147,9 @@ async def upload_video(video: UploadFile):
         # Cleanup on error
         video_path.unlink(missing_ok=True)
         audio_path.unlink(missing_ok=True)
-        landmarks_path.unlink(missing_ok=True)
+        #landmarks_path.unlink(missing_ok=True)
         raise HTTPException(500, f"Analysis failed: {str(e)}")
+
 
         
     except Exception as e:
