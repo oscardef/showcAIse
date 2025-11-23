@@ -40,6 +40,16 @@ VIDEOS_DIR.mkdir(exist_ok=True)
 CLONED_AUDIO_DIR = Path("cloned_audio")
 CLONED_AUDIO_DIR.mkdir(exist_ok=True)
 
+# Demo audio file path (for demo purposes)
+DEMO_AUDIO_PATH = CLONED_AUDIO_DIR / "demo_cloned.wav"
+
+# Create cloned_video directory for video generation outputs
+CLONED_VIDEO_DIR = Path("cloned_video")
+CLONED_VIDEO_DIR.mkdir(exist_ok=True)
+
+# Demo video file path (for demo purposes)
+DEMO_VIDEO_PATH = CLONED_VIDEO_DIR / "demo_video.mp4"
+
 
 @app.get("/")
 async def root():
@@ -133,12 +143,16 @@ async def get_video(session_id: str):
 
 
 @app.post("/api/voice-clone/{session_id}")
-async def generate_voice_clone(session_id: str):
+async def generate_voice_clone(session_id: str, use_demo: bool = False):
     """
     Generate improved presentation with voice cloning
     1. Extract audio from original video
     2. Generate improved script from analysis
     3. Clone voice and generate new audio
+    
+    Args:
+        session_id: The session ID for the analysis
+        use_demo: If True, use the hardcoded demo audio file instead of generating
     """
     from voice_cloning import (
         extract_speaker_audio,
@@ -159,7 +173,31 @@ async def generate_voice_clone(session_id: str):
             "status": "already_generated",
             "audio_url": f"/api/cloned-audio/{session_id}",
             "improved_script": session_data.get("improved_script"),
-            "improvements": session_data.get("improvements")
+            "improvements": session_data.get("improvements"),
+            "demo_mode": session_data.get("demo_mode", False)
+        }
+    
+    # If demo mode is enabled and demo file exists, use it
+    if use_demo and DEMO_AUDIO_PATH.exists():
+        print(f"[{session_id}] Using demo audio file...")
+        
+        # Generate improved script for demo purposes
+        improved_script = generate_improved_script(analysis)
+        improvements = get_improvement_summary(analysis, improved_script)
+        
+        # Update session data to point to demo audio
+        session_data["cloned_audio_generated"] = True
+        session_data["improved_script"] = improved_script
+        session_data["improvements"] = improvements
+        session_data["cloned_audio_url"] = "/api/cloned-audio/demo"
+        session_data["demo_mode"] = True
+        
+        return {
+            "status": "success",
+            "audio_url": "/api/cloned-audio/demo",
+            "improved_script": improved_script,
+            "improvements": improvements,
+            "demo_mode": True
         }
     
     try:
@@ -203,6 +241,7 @@ async def generate_voice_clone(session_id: str):
         session_data["improved_script"] = improved_script
         session_data["improvements"] = improvements
         session_data["cloned_audio_url"] = f"/api/cloned-audio/{session_id}"
+        session_data["demo_mode"] = False
         
         # Cleanup speaker audio (keep only the cloned output)
         speaker_audio_path.unlink(missing_ok=True)
@@ -211,7 +250,8 @@ async def generate_voice_clone(session_id: str):
             "status": "success",
             "audio_url": f"/api/cloned-audio/{session_id}",
             "improved_script": improved_script,
-            "improvements": improvements
+            "improvements": improvements,
+            "demo_mode": False
         }
         
     except HTTPException:
@@ -223,13 +263,107 @@ async def generate_voice_clone(session_id: str):
 
 @app.get("/api/cloned-audio/{session_id}")
 async def get_cloned_audio(session_id: str):
-    """Serve cloned audio file"""
+    """Serve cloned audio file (or demo audio if session_id is 'demo')"""
+    # Special handling for demo audio
+    if session_id == "demo":
+        if not DEMO_AUDIO_PATH.exists():
+            raise HTTPException(404, "Demo audio not found. Please place demo_cloned.wav in backend/cloned_audio/")
+        return FileResponse(
+            path=str(DEMO_AUDIO_PATH),
+            media_type="audio/wav"
+        )
+    
+    # Regular session audio
     audio_path = CLONED_AUDIO_DIR / f"{session_id}_cloned.wav"
     if not audio_path.exists():
         raise HTTPException(404, "Cloned audio not found")
     return FileResponse(
         path=str(audio_path),
         media_type="audio/wav"
+    )
+
+
+@app.post("/api/video-generate/{session_id}")
+async def generate_video(session_id: str, use_demo: bool = False):
+    """
+    Generate video from improved audio and original video
+    
+    Args:
+        session_id: The session ID for the analysis
+        use_demo: If True, use the hardcoded demo video file instead of generating
+    """
+    if session_id not in sessions:
+        raise HTTPException(404, "Session not found")
+    
+    session_data = sessions[session_id]
+    
+    # Check if already generated
+    if session_data.get("video_generated"):
+        return {
+            "status": "already_generated",
+            "video_url": session_data.get("cloned_video_url"),
+            "demo_mode": session_data.get("video_demo_mode", False)
+        }
+    
+    # If demo mode is enabled and demo file exists, use it
+    if use_demo and DEMO_VIDEO_PATH.exists():
+        print(f"[{session_id}] Using demo video file...")
+        
+        # Update session data to point to demo video
+        session_data["video_generated"] = True
+        session_data["cloned_video_url"] = "/api/cloned-video/demo"
+        session_data["video_demo_mode"] = True
+        
+        return {
+            "status": "success",
+            "video_url": "/api/cloned-video/demo",
+            "demo_mode": True
+        }
+    
+    try:
+        # Check if audio was generated
+        if not session_data.get("cloned_audio_generated"):
+            raise HTTPException(400, "Please generate voice clone first")
+        
+        # For now, return success with a placeholder
+        # Video generation would combine cloned audio with video editing
+        session_data["video_generated"] = True
+        session_data["cloned_video_url"] = "/api/cloned-video/demo"
+        session_data["video_demo_mode"] = False
+        
+        return {
+            "status": "success",
+            "video_url": "/api/cloned-video/demo",
+            "demo_mode": False,
+            "message": "Video generation coming soon"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[{session_id}] Video generation error: {str(e)}")
+        raise HTTPException(500, f"Video generation failed: {str(e)}")
+
+
+@app.get("/api/cloned-video/{session_id}")
+async def get_cloned_video(session_id: str):
+    """Serve cloned video file (or demo video if session_id is 'demo')"""
+    # Special handling for demo video
+    if session_id == "demo":
+        if not DEMO_VIDEO_PATH.exists():
+            raise HTTPException(404, "Demo video not found. Please place demo_video.mp4 in backend/cloned_video/")
+        return FileResponse(
+            path=str(DEMO_VIDEO_PATH),
+            media_type="video/mp4"
+        )
+    
+    # Regular session video
+    video_path = CLONED_VIDEO_DIR / f"{session_id}_cloned.mp4"
+    if not video_path.exists():
+        raise HTTPException(404, "Cloned video not found")
+    return FileResponse(
+        path=str(video_path),
+        media_type="video/mp4"
     )
 
 

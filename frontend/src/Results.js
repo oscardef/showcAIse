@@ -35,15 +35,16 @@ function Results({ data, onBack }) {
     { id: 'sentiment', label: 'Sentiment Analysis' },
     { id: 'delivery', label: 'Delivery Metrics' },
     { id: 'recommendations', label: 'Recommendations' },
-    { id: 'voiceclone', label: 'Voice Clone' },
+    { id: 'voiceclone', label: 'AI Generation' },
     { id: 'transcript', label: 'Transcript' }
   ];
 
-  const handleGenerateVoiceClone = async () => {
+  const handleGenerateVoiceClone = async (useDemo = false) => {
     setVoiceCloning({ ...voiceCloning, loading: true, error: null });
     
     try {
-      const response = await fetch(`http://localhost:8000/api/voice-clone/${data.session_id}`, {
+      const url = `http://localhost:8000/api/voice-clone/${data.session_id}${useDemo ? '?use_demo=true' : ''}`;
+      const response = await fetch(url, {
         method: 'POST'
       });
       
@@ -60,10 +61,11 @@ function Results({ data, onBack }) {
         completed: true,
         audioUrl: `http://localhost:8000${result.audio_url}`,
         improvedScript: result.improved_script,
-        improvements: result.improvements
+        improvements: result.improvements,
+        demoMode: result.demo_mode || false
       });
       
-      // Switch to voice clone tab to show results
+      // Switch to AI Generation tab to show results
       setActiveTab('voiceclone');
       
     } catch (error) {
@@ -138,21 +140,29 @@ function Results({ data, onBack }) {
       </div>
 
       <div className="voice-clone-section card">
-        <h2>🎤 Voice Cloning</h2>
-        <p>Generate an improved version of your presentation with your own voice</p>
+        <h2>🎤 AI Generation</h2>
+        <p>Generate improved versions of your presentation</p>
         {!voiceCloning.completed && !voiceCloning.loading && (
-          <button 
-            className="btn-primary" 
-            onClick={handleGenerateVoiceClone}
-            style={{ marginTop: '12px' }}
-          >
-            Generate Improved Voice Clone
-          </button>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
+            <button 
+              className="btn-primary" 
+              onClick={() => handleGenerateVoiceClone(false)}
+            >
+              Generate Voice Clone
+            </button>
+            <button 
+              className="btn-secondary" 
+              onClick={() => handleGenerateVoiceClone(true)}
+              style={{ backgroundColor: '#6b7280' }}
+            >
+              Play Demo Audio
+            </button>
+          </div>
         )}
         {voiceCloning.loading && (
           <div className="loading" style={{ marginTop: '12px' }}>
             <div className="spinner"></div>
-            <p>Generating voice clone... This may take 1-2 minutes</p>
+            <p>Generating... This may take 1-2 minutes</p>
           </div>
         )}
         {voiceCloning.error && (
@@ -162,7 +172,7 @@ function Results({ data, onBack }) {
         )}
         {voiceCloning.completed && (
           <div className="success-message" style={{ marginTop: '12px', color: '#10b981' }}>
-            ✅ Voice clone generated! Check the Voice Clone tab to listen.
+            ✅ {voiceCloning.demoMode ? 'Demo audio loaded!' : 'Voice clone generated!'} Check the AI Generation tab to listen.
           </div>
         )}
       </div>
@@ -544,22 +554,30 @@ function Results({ data, onBack }) {
     <div className="tab-content">
       {!voiceCloning.completed && !voiceCloning.loading && (
         <div className="card">
-          <h2>🎤 Voice Cloning</h2>
-          <p>Generate an improved version of your presentation using your own voice.</p>
-          <p style={{ marginTop: '16px' }}>This will:</p>
+          <h2>🎤 AI Generation</h2>
+          <p>Generate improved versions of your presentation.</p>
+          <p style={{ marginTop: '16px' }}>Voice cloning will:</p>
           <ul style={{ marginLeft: '20px', marginTop: '8px' }}>
             <li>Remove all filler words from your speech</li>
             <li>Replace uncertain language with confident phrasing</li>
             <li>Maintain your natural voice and speaking style</li>
             <li>Generate clean audio ready for video creation</li>
           </ul>
-          <button 
-            className="btn-primary" 
-            onClick={handleGenerateVoiceClone}
-            style={{ marginTop: '20px' }}
-          >
-            Generate Improved Voice Clone
-          </button>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <button 
+              className="btn-primary" 
+              onClick={() => handleGenerateVoiceClone(false)}
+            >
+              Generate Voice Clone
+            </button>
+            <button 
+              className="btn-secondary" 
+              onClick={() => handleGenerateVoiceClone(true)}
+              style={{ backgroundColor: '#6b7280', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+            >
+              Play Demo Audio
+            </button>
+          </div>
         </div>
       )}
       
@@ -567,7 +585,7 @@ function Results({ data, onBack }) {
         <div className="card">
           <div className="loading">
             <div className="spinner"></div>
-            <h2>Generating Voice Clone...</h2>
+            <h2>Generating...</h2>
             <p>This process takes 1-2 minutes. We're:</p>
             <ul style={{ textAlign: 'left', marginLeft: '40px', marginTop: '12px' }}>
               <li>Extracting your voice from the video</li>
@@ -581,23 +599,31 @@ function Results({ data, onBack }) {
       
       {voiceCloning.error && (
         <div className="card">
-          <h2 style={{ color: '#ef4444' }}>❌ Voice Cloning Failed</h2>
+          <h2 style={{ color: '#ef4444' }}>❌ Generation Failed</h2>
           <p>{voiceCloning.error}</p>
-          <button 
-            className="btn-primary" 
-            onClick={handleGenerateVoiceClone}
-            style={{ marginTop: '16px' }}
-          >
-            Try Again
-          </button>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+            <button 
+              className="btn-primary" 
+              onClick={() => handleGenerateVoiceClone(false)}
+            >
+              Try Again
+            </button>
+            <button 
+              className="btn-secondary" 
+              onClick={() => handleGenerateVoiceClone(true)}
+              style={{ backgroundColor: '#6b7280', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+            >
+              Play Demo Audio
+            </button>
+          </div>
         </div>
       )}
       
       {voiceCloning.completed && voiceCloning.audioUrl && (
         <div className="tab-content">
           <div className="card">
-            <h2>✅ Voice Clone Generated Successfully!</h2>
-            <p>Listen to your improved presentation:</p>
+            <h2>✅ {voiceCloning.demoMode ? 'Demo Audio' : 'Voice Clone Generated Successfully!'}</h2>
+            <p>Listen to {voiceCloning.demoMode ? 'the demo' : 'your improved presentation'}:</p>
             
             <div style={{ marginTop: '20px', marginBottom: '20px' }}>
               <audio controls style={{ width: '100%', maxWidth: '600px' }}>

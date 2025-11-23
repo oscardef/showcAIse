@@ -1,6 +1,42 @@
 # Node modules
 frontend/node_modules
-frontend/build
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+This is perfect for demos, testing, or when you want to showcase the feature without waiting for video generation to complete.- Responds instantly (no video processing required)- Returns the pre-recorded demo video file- The system skips the actual video generation processWhen `use_demo=true` is passed to the video generation endpoint:## How It Works- **Recommended:** 1080p or 720p resolution, H.264 codec- **Format:** MP4 video file- **Filename:** `demo_video.mp4`## File Format   ```   GET /api/cloned-video/demo   ```3. **The demo video will be served at:**   ```   POST /api/video-generate/{session_id}?use_demo=true   ```bash2. **Use the demo mode in your API call:**   ```   backend/cloned_video/demo_video.mp4   ```1. **Place your demo video file here:**To use the demo video feature without generating video each time:## Demo Mode SetupThis directory contains generated video outputs.frontend/build
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
@@ -44,3 +80,14 @@ TEAM_SETUP.md
 *.tmp
 temp/
 uploads/
+
+# Runtime data directories (don't copy into Docker image)
+backend/uploads/
+backend/videos/
+backend/cloned_audio/*.wav
+backend/cloned_video/*.mp4
+backend/__pycache__/
+
+# Keep demo files (negation pattern)
+!backend/cloned_audio/demo_cloned.wav
+!backend/cloned_video/demo_video.mp4

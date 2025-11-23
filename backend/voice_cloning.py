@@ -31,18 +31,14 @@ except ImportError:
 # Import torchaudio (will use soundfile automatically if available)
 try:
     import torchaudio
-    # Newer torchaudio versions don't have set_audio_backend
-    # They automatically use soundfile if torchcodec is not available
-    if hasattr(torchaudio, 'set_audio_backend'):
-        torchaudio.set_audio_backend("soundfile")
-        print(f"✓ torchaudio backend explicitly set to: soundfile")
-    else:
-        print(f"✓ torchaudio will use soundfile automatically")
+    # torchaudio 2.5+ automatically uses soundfile when torchcodec is disabled
+    # No need to call set_audio_backend (it's deprecated)
+    print(f"✓ torchaudio will use soundfile automatically")
 except Exception as e:
     print(f"⚠️  torchaudio import warning: {e}")
 
-# Use moviepy.editor like in your working code
-from moviepy.editor import VideoFileClip
+# moviepy 2.2.1+ imports directly from moviepy (no .editor submodule)
+from moviepy import VideoFileClip
 from TTS.api import TTS
 
 

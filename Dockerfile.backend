@@ -34,15 +34,22 @@ RUN pip install --no-cache-dir \
 # Use torch 2.5.1 (user's working version)
 RUN pip install --no-cache-dir \
     torch==2.5.1 \
+    torchaudio==2.5.1 \
     numpy==1.26.4 \
-    transformers==4.33.0 \
+    transformers==4.49.0 \
     accelerate>=0.20.0
 
-# Install TTS and related (large but stable)
+# Install moviepy and its dependencies first
+RUN pip install --no-cache-dir \
+    decorator>=5.2.1 \
+    proglog>=0.1.10 \
+    imageio-ffmpeg>=0.6.0 \
+    moviepy==2.2.1
+
+# Install TTS and audio processing (large but stable)
 RUN pip install --no-cache-dir \
     TTS==0.22.0 \
-    moviepy==2.2.1 \
-    soundfile>=0.12.1 \
+    soundfile==0.13.1 \
     librosa>=0.10.0 \
     scipy>=1.11.0
 
@@ -54,6 +61,13 @@ RUN pip install --no-cache-dir \
 
 # Copy backend code LAST
 COPY backend/ .
+
+# Clean up any uploaded videos, audio files, and cloned audio from previous runs
+# Preserve demo_cloned.wav (the hardcoded demo audio) and demo_video.mp4 (the hardcoded demo video)
+RUN find uploads/ -type f \( -name "*.mp4" -o -name "*.wav" \) -delete 2>/dev/null || true && \
+    find videos/ -type f -name "*.mp4" -delete 2>/dev/null || true && \
+    find cloned_audio/ -type f -name "*.wav" ! -name "demo_cloned.wav" -delete 2>/dev/null || true && \
+    find cloned_video/ -type f -name "*.mp4" ! -name "demo_video.mp4" -delete 2>/dev/null || true
 
 # Optional: Pre-download TTS model during build to avoid runtime download
 # Comment this out if you want to use volume caching instead

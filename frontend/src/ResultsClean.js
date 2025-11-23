@@ -13,6 +13,14 @@ function Results({ data, onBack }) {
     error: null
   });
 
+  const [videoGeneration, setVideoGeneration] = useState({
+    loading: false,
+    generated: false,
+    videoUrl: null,
+    error: null,
+    demoMode: false
+  });
+
   if (!data || !data.results) {
     return (
       <div className="loading-container">
@@ -34,18 +42,17 @@ function Results({ data, onBack }) {
 
   const tabs = [
     { id: 'moments', label: 'Key Moments', count: strongCount + weakCount },
-    { id: 'voice-clone', label: '🎤 Voice Clone', icon: '✨' },
+    { id: 'voice-clone', label: '🎤 AI Generation', icon: '✨' },
     { id: 'recommendations', label: 'Recommendations', count: results.recommendations?.length || 0 },
     { id: 'transcript', label: 'Transcript' }
   ];
 
-  const handleGenerateVoiceClone = async () => {
+  const handleGenerateVoiceClone = async (useDemo = false) => {
     setVoiceCloning({ ...voiceCloning, loading: true, error: null });
     
     try {
-      const response = await axios.post(
-        `http://localhost:8000/api/voice-clone/${data.session_id}`
-      );
+      const url = `http://localhost:8000/api/voice-clone/${data.session_id}${useDemo ? '?use_demo=true' : ''}`;
+      const response = await axios.post(url);
       
       setVoiceCloning({
         loading: false,
@@ -53,6 +60,7 @@ function Results({ data, onBack }) {
         audioUrl: response.data.audio_url,
         improvedScript: response.data.improved_script,
         improvements: response.data.improvements,
+        demoMode: response.data.demo_mode || false,
         error: null
       });
     } catch (error) {
@@ -60,6 +68,29 @@ function Results({ data, onBack }) {
         ...voiceCloning,
         loading: false,
         error: error.response?.data?.detail || 'Voice cloning failed'
+      });
+    }
+  };
+
+  const handleGenerateVideo = async (useDemo = false) => {
+    setVideoGeneration({ ...videoGeneration, loading: true, error: null });
+    
+    try {
+      const url = `http://localhost:8000/api/video-generate/${data.session_id}${useDemo ? '?use_demo=true' : ''}`;
+      const response = await axios.post(url);
+      
+      setVideoGeneration({
+        loading: false,
+        generated: true,
+        videoUrl: response.data.video_url,
+        demoMode: response.data.demo_mode || false,
+        error: null
+      });
+    } catch (error) {
+      setVideoGeneration({
+        ...videoGeneration,
+        loading: false,
+        error: error.response?.data?.detail || 'Video generation failed'
       });
     }
   };
@@ -151,8 +182,8 @@ function Results({ data, onBack }) {
       <div className="tab-content-clean">
         <div className="voice-clone-section">
           <div className="voice-clone-header">
-            <h2>🎤 AI Voice Cloning</h2>
-            <p>Generate an improved version of your presentation using voice cloning technology</p>
+            <h2>🎤 AI Generation</h2>
+            <p>Generate improved versions of your presentation</p>
           </div>
 
           {!voiceCloning.generated && !voiceCloning.loading && (
@@ -166,12 +197,21 @@ function Results({ data, onBack }) {
                   <li>✅ Your voice cloned to deliver the improved script</li>
                 </ul>
               </div>
-              <button 
-                className="generate-voice-btn"
-                onClick={handleGenerateVoiceClone}
-              >
-                🎙️ Generate Improved Presentation
-              </button>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button 
+                  className="generate-voice-btn"
+                  onClick={() => handleGenerateVoiceClone(false)}
+                >
+                  🎙️ Generate Improved Presentation
+                </button>
+                <button 
+                  className="generate-voice-btn"
+                  onClick={() => handleGenerateVoiceClone(true)}
+                  style={{ backgroundColor: '#6b7280', backgroundImage: 'none' }}
+                >
+                  🎧 Play Demo Audio
+                </button>
+              </div>
             </div>
           )}
 
@@ -187,14 +227,19 @@ function Results({ data, onBack }) {
             <div className="voice-clone-error">
               <h3>❌ Error</h3>
               <p>{voiceCloning.error}</p>
-              <button onClick={handleGenerateVoiceClone}>Try Again</button>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+                <button onClick={() => handleGenerateVoiceClone(false)}>Try Again</button>
+                <button onClick={() => handleGenerateVoiceClone(true)} style={{ backgroundColor: '#6b7280' }}>
+                  Play Demo Audio
+                </button>
+              </div>
             </div>
           )}
 
           {voiceCloning.generated && (
             <div className="voice-clone-result">
               <div className="result-header">
-                <h3>✅ Voice Clone Generated!</h3>
+                <h3>✅ {voiceCloning.demoMode ? 'Demo Audio' : 'Voice Clone Generated!'}</h3>
               </div>
 
               {voiceCloning.improvements && (
@@ -248,6 +293,71 @@ function Results({ data, onBack }) {
                   </div>
                 </div>
               )}
+
+              {/* Video Generation Section */}
+              <div className="video-generation-section" style={{ marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e5e7eb' }}>
+                <h3>🎬 Video Generation</h3>
+                <p>Generate a complete video with the improved audio</p>
+
+                {!videoGeneration.generated && !videoGeneration.loading && (
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px', flexWrap: 'wrap' }}>
+                    <button 
+                      className="generate-voice-btn"
+                      onClick={() => handleGenerateVideo(false)}
+                    >
+                      🎬 Generate Video
+                    </button>
+                    <button 
+                      className="generate-voice-btn"
+                      onClick={() => handleGenerateVideo(true)}
+                      style={{ backgroundColor: '#6b7280', backgroundImage: 'none' }}
+                    >
+                      📹 Play Demo Video
+                    </button>
+                  </div>
+                )}
+
+                {videoGeneration.loading && (
+                  <div className="voice-clone-loading">
+                    <div className="spinner"></div>
+                    <p>Generating video...</p>
+                  </div>
+                )}
+
+                {videoGeneration.error && (
+                  <div className="voice-clone-error">
+                    <p>{videoGeneration.error}</p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+                      <button onClick={() => handleGenerateVideo(false)}>Try Again</button>
+                      <button onClick={() => handleGenerateVideo(true)} style={{ backgroundColor: '#6b7280' }}>
+                        Play Demo Video
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {videoGeneration.generated && videoGeneration.videoUrl && (
+                  <div style={{ marginTop: '20px' }}>
+                    <h4>✅ {videoGeneration.demoMode ? 'Demo Video' : 'Video Generated!'}</h4>
+                    <video 
+                      controls 
+                      src={`http://localhost:8000${videoGeneration.videoUrl}`}
+                      style={{ width: '100%', maxWidth: '800px', marginTop: '16px', borderRadius: '8px' }}
+                    >
+                      Your browser does not support video playback.
+                    </video>
+                    <div style={{ marginTop: '16px' }}>
+                      <a 
+                        href={`http://localhost:8000${videoGeneration.videoUrl}`}
+                        download="improved_presentation.mp4"
+                        className="download-audio-btn"
+                      >
+                        ⬇️ Download Video
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
