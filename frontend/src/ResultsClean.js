@@ -194,15 +194,16 @@ function Results({ data, onBack }) {
                   <li>✅ Improved script with fillers removed</li>
                   <li>✅ Confident language replacing uncertain phrases</li>
                   <li>✅ Optimized pacing and structure</li>
-                  <li>✅ Your voice cloned to deliver the improved script</li>
+                  <li>✅ AI-generated audio and video with your improvements</li>
                 </ul>
               </div>
+              
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button 
                   className="generate-voice-btn"
                   onClick={() => handleGenerateVoiceClone(false)}
                 >
-                  🎙️ Generate Improved Presentation
+                  🎙️ Generate Voice Clone
                 </button>
                 <button 
                   className="generate-voice-btn"
@@ -293,73 +294,77 @@ function Results({ data, onBack }) {
                   </div>
                 </div>
               )}
-
-              {/* Video Generation Section */}
-              <div className="video-generation-section" style={{ marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e5e7eb' }}>
-                <h3>🎬 Video Generation</h3>
-                <p>Generate a complete video with the improved audio</p>
-
-                {!videoGeneration.generated && !videoGeneration.loading && (
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px', flexWrap: 'wrap' }}>
-                    <button 
-                      className="generate-voice-btn"
-                      onClick={() => handleGenerateVideo(false)}
-                    >
-                      🎬 Generate Video
-                    </button>
-                    <button 
-                      className="generate-voice-btn"
-                      onClick={() => handleGenerateVideo(true)}
-                      style={{ backgroundColor: '#6b7280', backgroundImage: 'none' }}
-                    >
-                      📹 Play Demo Video
-                    </button>
-                  </div>
-                )}
-
-                {videoGeneration.loading && (
-                  <div className="voice-clone-loading">
-                    <div className="spinner"></div>
-                    <p>Generating video...</p>
-                  </div>
-                )}
-
-                {videoGeneration.error && (
-                  <div className="voice-clone-error">
-                    <p>{videoGeneration.error}</p>
-                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
-                      <button onClick={() => handleGenerateVideo(false)}>Try Again</button>
-                      <button onClick={() => handleGenerateVideo(true)} style={{ backgroundColor: '#6b7280' }}>
-                        Play Demo Video
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {videoGeneration.generated && videoGeneration.videoUrl && (
-                  <div style={{ marginTop: '20px' }}>
-                    <h4>✅ {videoGeneration.demoMode ? 'Demo Video' : 'Video Generated!'}</h4>
-                    <video 
-                      controls 
-                      src={`http://localhost:8000${videoGeneration.videoUrl}`}
-                      style={{ width: '100%', maxWidth: '800px', marginTop: '16px', borderRadius: '8px' }}
-                    >
-                      Your browser does not support video playback.
-                    </video>
-                    <div style={{ marginTop: '16px' }}>
-                      <a 
-                        href={`http://localhost:8000${videoGeneration.videoUrl}`}
-                        download="improved_presentation.mp4"
-                        className="download-audio-btn"
-                      >
-                        ⬇️ Download Video
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           )}
+
+          {/* Video Generation Section - Independent from audio */}
+          <div className="video-generation-section" style={{ marginTop: '32px', paddingTop: '32px', borderTop: '2px solid #e5e7eb' }}>
+            <h3>🎬 Video Generation</h3>
+            <p>Generate a complete video with the improved audio</p>
+
+            {!videoGeneration.generated && !videoGeneration.loading && (
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px', flexWrap: 'wrap' }}>
+                <button 
+                  className="generate-voice-btn"
+                  onClick={() => handleGenerateVideo(false)}
+                >
+                  🎬 Generate Video
+                </button>
+                <button 
+                  className="generate-voice-btn"
+                  onClick={() => handleGenerateVideo(true)}
+                  style={{ backgroundColor: '#6b7280', backgroundImage: 'none' }}
+                >
+                  📹 Play Demo Video
+                </button>
+              </div>
+            )}
+
+            {videoGeneration.loading && (
+              <div className="voice-clone-loading">
+                <div className="spinner"></div>
+                <p>Generating video...</p>
+              </div>
+            )}
+
+            {videoGeneration.error && (
+              <div className="voice-clone-error">
+                <p>{videoGeneration.error}</p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+                  <button onClick={() => handleGenerateVideo(false)}>Try Again</button>
+                  <button onClick={() => handleGenerateVideo(true)} style={{ backgroundColor: '#6b7280' }}>
+                    Play Demo Video
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {videoGeneration.generated && videoGeneration.videoUrl && (
+              <div style={{ marginTop: '20px' }}>
+                <h4>✅ {videoGeneration.demoMode ? 'Demo Video' : 'Video Generated!'}</h4>
+                <video 
+                  key={videoGeneration.videoUrl}
+                  controls 
+                  autoPlay
+                  src={`http://localhost:8000${videoGeneration.videoUrl}`}
+                  style={{ width: '100%', maxWidth: '800px', marginTop: '16px', borderRadius: '8px', backgroundColor: '#000' }}
+                >
+                  Your browser does not support video playback.
+                </video>
+                <div style={{ marginTop: '16px' }}>
+                  <a 
+                    href={`http://localhost:8000${videoGeneration.videoUrl}`}
+                    download="improved_presentation.mp4"
+                    className="download-audio-btn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    ⬇️ Download Video
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
